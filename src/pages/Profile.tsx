@@ -4,7 +4,10 @@ import { useAuth } from '@/context/AuthContext';
 import { mockOrders } from '@/data/mockData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
+import { Link } from 'react-router-dom';
+import { Package } from 'lucide-react';
 
 const Profile = () => {
   const { user } = useAuth();
@@ -60,7 +63,15 @@ const Profile = () => {
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>
-                <CardTitle>Order History</CardTitle>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Order History</CardTitle>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/track-order">
+                      <Package className="w-4 h-4 mr-2" />
+                      Track Orders
+                    </Link>
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {userOrders.length > 0 ? (

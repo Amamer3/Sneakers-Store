@@ -98,6 +98,7 @@ const Index = () => {
             <div>
               <h3 className="text-lg font-semibold mb-4">Customer Service</h3>
               <ul className="space-y-2 text-gray-400">
+                <li><Link to="/track-order" className="hover:text-white transition-colors">Track Your Order</Link></li>
                 <li><Link to="/contact" className="hover:text-white transition-colors">Contact Us</Link></li>
                 <li><Link to="/shipping" className="hover:text-white transition-colors">Shipping Info</Link></li>
                 <li><Link to="/returns" className="hover:text-white transition-colors">Returns</Link></li>
@@ -107,7 +108,7 @@ const Index = () => {
               <h3 className="text-lg font-semibold mb-4">Account</h3>
               <ul className="space-y-2 text-gray-400">
                 <li><Link to="/profile" className="hover:text-white transition-colors">My Account</Link></li>
-                <li><Link to="/orders" className="hover:text-white transition-colors">Order History</Link></li>
+                <li><Link to="/track-order" className="hover:text-white transition-colors">Order History</Link></li>
                 <li><Link to="/wishlist" className="hover:text-white transition-colors">Wishlist</Link></li>
               </ul>
             </div>

@@ -16,10 +16,12 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import Search from "./pages/Search";
+import OrderTracking from "./pages/OrderTracking";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminProducts from "./pages/admin/Products";
 import AdminOrders from "./pages/admin/Orders";
 import AdminUsers from "./pages/admin/Users";
+import AdminAnalytics from "./pages/admin/Analytics";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -43,6 +45,7 @@ const App = () => (
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/search" element={<Search />} />
+                <Route path="/track-order" element={<OrderTracking />} />
                 <Route path="/profile" element={
                   <ProtectedRoute>
                     <Profile />
@@ -68,6 +71,11 @@ const App = () => (
                 <Route path="/admin/users" element={
                   <ProtectedRoute adminOnly>
                     <AdminUsers />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/analytics" element={
+                  <ProtectedRoute adminOnly>
+                    <AdminAnalytics />
                   </ProtectedRoute>
                 } />
                 

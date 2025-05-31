@@ -7,7 +7,8 @@ import {
   ShoppingCart, 
   Users, 
   LogOut,
-  Menu
+  Menu,
+  BarChart3
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -31,7 +32,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/products', icon: Package, label: 'Products' },
     { path: '/admin/orders', icon: ShoppingCart, label: 'Orders' },
-    { path: '/admin/users', icon: Users, label: 'Users' }
+    { path: '/admin/users', icon: Users, label: 'Users' },
+    { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' }
   ];
 
   const SidebarContent = () => (
