@@ -1,11 +1,12 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowDown } from 'lucide-react';
 import { mockProducts } from '@/data/mockData';
 import ProductCard from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
+import HeroCarousel from '@/components/HeroCarousel';
+import PromoBanner from '@/components/PromoBanner';
 
 const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -21,26 +22,8 @@ const Index = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-r from-blue-900 via-purple-900 to-indigo-900 text-white py-20 overflow-hidden">
-        <div className="absolute inset-0 bg-black opacity-20"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-fade-in">
-            Step Into
-            <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"> Style</span>
-          </h1>
-          <p className="text-xl md:text-2xl mb-8 text-gray-200 max-w-3xl mx-auto animate-fade-in">
-            Discover the latest and greatest sneakers from top brands. Your perfect pair is waiting.
-          </p>
-          <Button asChild size="lg" className="animate-fade-in bg-white text-black hover:bg-gray-100">
-            <Link to="#products">
-              Shop Now
-              <ArrowDown className="ml-2 h-5 w-5" />
-            </Link>
-          </Button>
-        </div>
-        <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-gray-50 to-transparent"></div>
-      </section>
+      {/* Hero Section with Carousel */}
+      <HeroCarousel />
 
       {/* Featured Products */}
       <section className="py-16">
@@ -90,6 +73,9 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Promotional Banner */}
+      <PromoBanner />
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12">
