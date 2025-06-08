@@ -1,81 +1,167 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authService } from '../services/authService';
+import { useToast } from '@/components/ui/use-toast';
+import axios from 'axios';
 
 interface User {
   id: string;
   email: string;
   name: string;
   role: 'customer' | 'admin';
+  phoneNumber?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (email: string, password: string, name: string) => Promise<boolean>;
-  logout: () => void;
+  isAuthenticated: boolean;
   isAdmin: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  adminLogin: (email: string, password: string) => Promise<boolean>;
+  register: (email: string, password: string, name: string) => Promise<boolean>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    // Check for saved user on mount
+    const initAuth = () => {
+      try {
+        const savedUser = authService.getCurrentUser();
+        if (savedUser) {
+          // Ensure the role is either 'customer' or 'admin'
+          const validatedUser: User = {
+            ...savedUser,
+            role: savedUser.role === 'admin' ? 'admin' : 'customer'
+          };
+          setUser(validatedUser);
+          // Restore auth header
+          const token = authService.getToken();
+          if (token) {
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          }
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        // Clear potentially corrupted auth data
+        authService.logout();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock authentication - check predefined users
-    const mockUsers = [
-      { id: '1', email: 'admin@sneakers.com', password: 'admin123', name: 'Admin User', role: 'admin' as const },
-      { id: '2', email: 'user@test.com', password: 'user123', name: 'John Doe', role: 'customer' as const }
-    ];
-
-    const foundUser = mockUsers.find(u => u.email === email && u.password === password);
-    if (foundUser) {
-      const { password: _, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('user', JSON.stringify(userWithoutPassword));
+    try {
+      const response = await authService.login({ email, password });
+      // Validate and convert the role
+      const validatedUser: User = {
+        ...response.user,
+        role: response.user.role === 'admin' ? 'admin' : 'customer'
+      };
+      setUser(validatedUser);
+      toast({
+        title: "Success",
+        description: "Logged in successfully",
+      });
       return true;
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: error.response?.data?.message || "Please check your credentials",
+      });
+      return false;
     }
-    return false;
+  };
+
+  const adminLogin = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await authService.adminLogin({ email, password });
+      // For admin login, explicitly set role as admin
+      const adminUser: User = {
+        ...response.user,
+        role: 'admin'
+      };
+      setUser(adminUser);
+      toast({
+        title: "Success",
+        description: "Admin logged in successfully",
+      });
+      return true;
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Admin Login Failed",
+        description: error.response?.data?.message || "Please check your credentials",
+      });
+      return false;
+    }
   };
 
   const register = async (email: string, password: string, name: string): Promise<boolean> => {
-    // Mock registration
-    const newUser = {
-      id: Date.now().toString(),
-      email,
-      name,
-      role: 'customer' as const
-    };
-    setUser(newUser);
-    localStorage.setItem('user', JSON.stringify(newUser));
-    return true;
+    try {
+      const response = await authService.login({ email, password });
+      // For new registrations, always set role as customer
+      const newUser: User = {
+        ...response.user,
+        role: 'customer'
+      };
+      setUser(newUser);
+      toast({
+        title: "Success",
+        description: "Registration successful",
+      });
+      return true;
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: error.response?.data?.message || "Failed to create account",
+      });
+      return false;
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    authService.logout();
     setUser(null);
-    localStorage.removeItem('user');
+    toast({
+      title: "Logged Out",
+      description: "You have been successfully logged out",
+    });
   };
 
-  const isAdmin = user?.role === 'admin';
+  const value = {
+    user,
+    isAuthenticated: !!user,
+    isAdmin: user?.role === 'admin',
+    isLoading,
+    login,
+    adminLogin,
+    register,
+    logout
+  };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isAdmin }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
+}
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

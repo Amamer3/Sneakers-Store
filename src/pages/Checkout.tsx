@@ -1,92 +1,217 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
+import { useDelivery } from '@/context/DeliveryContext';
+import { useCurrency } from '@/context/CurrencyContext';
+import { orderService } from '@/services/order-service';
+import { paymentService } from '@/services/payment-service';
+import { PaymentMethodSelector } from '@/components/PaymentMethodSelector';
+import { DeliveryInstructions } from '@/components/DeliveryInstructions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import Navbar from '@/components/Navbar';
+import { Loader2, AlertTriangle, RefreshCcw } from 'lucide-react';
 
 const Checkout = () => {
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, clearCart } = useCart();
   const { user } = useAuth();
+  const { validateAddress, currentZone } = useDelivery();
+  const { formatPrice } = useCurrency();
   const navigate = useNavigate();
   const { toast } = useToast();
   
+  const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const deliveryFee = currentZone?.price || 0;
+  const tax = subtotal * 0.08;
+  const total = subtotal + tax + deliveryFee;
+
   const [shippingInfo, setShippingInfo] = useState({
     fullName: user?.name || '',
     email: user?.email || '',
+    phoneNumber: '',
     address: '',
     city: '',
+    state: '',
     zipCode: '',
-    country: 'United States'
+    country: 'Ghana'
   });
   
-  const [paymentInfo, setPaymentInfo] = useState({
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-    nameOnCard: ''
-  });
-
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
   const [processing, setProcessing] = useState(false);
+  const [validatingAddress, setValidatingAddress] = useState(false);
+  const [networkError, setNetworkError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (shippingInfo.city && shippingInfo.country) {
+      validateShippingAddress();
+    }
+  }, [shippingInfo.city, shippingInfo.state, shippingInfo.country]);
 
   const handleShippingChange = (field: string, value: string) => {
     setShippingInfo(prev => ({ ...prev, [field]: value }));
   };
 
-  const handlePaymentChange = (field: string, value: string) => {
-    setPaymentInfo(prev => ({ ...prev, [field]: value }));
+  const validateShippingAddress = async () => {
+    try {
+      setValidatingAddress(true);
+      setNetworkError(null);      const result = await validateAddress({
+        street: shippingInfo.address,
+        city: shippingInfo.city,
+        state: shippingInfo.state,
+        postalCode: shippingInfo.zipCode,
+        country: shippingInfo.country
+      });
+
+      if (!result.isValid) {
+        toast({
+          title: "Invalid Delivery Address",
+          description: result.message || "Please check your delivery address",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to validate address';
+      setNetworkError(errorMessage);
+      console.error('Address validation error:', error);
+    } finally {
+      setValidatingAddress(false);
+    }
+  };
+
+  const handlePayment = async (orderId: string) => {
+    try {
+      setProcessing(true);
+      if (paymentMethod === 'card') {
+        // Initialize PayStack payment
+        const payment = await paymentService.initializePayment(
+          orderId,
+          total,
+          shippingInfo.email
+        );
+
+        if (payment.status === 'success') {
+          // Verify the payment
+          const verification = await paymentService.verifyPayment(payment.reference);
+          
+          if (verification.status === 'success') {
+            // Payment successful
+            clearCart();
+            toast({
+              title: 'Payment successful!',
+              description: 'Your order has been confirmed.',
+              variant: 'default',
+            });
+            navigate(`/order/${orderId}/success?reference=${payment.reference}`);
+          } else {
+            // Payment failed
+            setNetworkError('Payment verification failed. Please try again.');
+            await orderService.updateOrderStatus(orderId, { status: 'failed' });
+          }
+        }
+      } else {
+        // Cash on delivery
+        await orderService.updateOrderStatus(orderId, { status: 'pending' });
+        clearCart();
+        navigate(`/order/${orderId}/success`);
+      }
+    } catch (error: any) {
+      console.error('Payment error:', error);
+      setNetworkError(error.message || 'Payment failed. Please try again.');
+      if (orderId) {
+        await orderService.updateOrderStatus(orderId, { status: 'failed' });
+      }
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProcessing(true);
+    setNetworkError(null);
 
-    // Simulate payment processing
-    setTimeout(() => {
+    if (!items.length) {
       toast({
-        title: "Order placed successfully!",
-        description: "Thank you for your purchase. You'll receive a confirmation email shortly."
+        title: 'Cart is empty',
+        description: 'Please add items to your cart before checking out.',
+        variant: 'destructive',
       });
-      
-      clearCart();
-      navigate('/profile');
+      return;
+    }
+
+    try {
+      setProcessing(true);
+
+      // Create the order first
+      const order = await orderService.createOrder({
+        items: items.map(item => ({
+          productId: item.id,
+          quantity: item.quantity
+        })),
+        shippingAddress: {
+          street: shippingInfo.address,
+          city: shippingInfo.city,
+          state: shippingInfo.state,
+          country: shippingInfo.country,
+          postalCode: shippingInfo.zipCode,
+          zipCode: ''
+        }
+      });
+
+      // Process payment
+      await handlePayment(order.id);
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      setNetworkError(error.message || 'Failed to process order. Please try again.');
+    } finally {
       setProcessing(false);
-    }, 2000);
+    }
   };
 
-  const tax = totalPrice * 0.08;
-  const total = totalPrice + tax;
-
-  if (items.length === 0) {
-    navigate('/cart');
-    return null;
+  // Show network error alert
+  if (networkError) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Alert variant="destructive" className="mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Network Error</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            <span>{networkError}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.reload()}
+              className="ml-4"
+            >
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Checkout</h1>
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8">Checkout</h1>
         
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Shipping & Payment Info */}
+            {/* Shipping Information */}
             <div className="space-y-6">
-              {/* Shipping Information */}
               <Card>
                 <CardHeader>
                   <CardTitle>Shipping Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
+                    <div className="col-span-2">
                       <Label htmlFor="fullName">Full Name</Label>
                       <Input
                         id="fullName"
@@ -95,7 +220,7 @@ const Checkout = () => {
                         required
                       />
                     </div>
-                    <div>
+                    <div className="col-span-2">
                       <Label htmlFor="email">Email</Label>
                       <Input
                         id="email"
@@ -105,20 +230,26 @@ const Checkout = () => {
                         required
                       />
                     </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="address">Address</Label>
-                    <Input
-                      id="address"
-                      value={shippingInfo.address}
-                      onChange={(e) => handleShippingChange('address', e.target.value)}
-                      placeholder="123 Main Street"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <Label htmlFor="phoneNumber">Phone Number</Label>
+                      <Input
+                        id="phoneNumber"
+                        type="tel"
+                        placeholder="e.g., +233 XX XXX XXXX"
+                        value={shippingInfo.phoneNumber}
+                        onChange={(e) => handleShippingChange('phoneNumber', e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="address">Street Address</Label>
+                      <Input
+                        id="address"
+                        value={shippingInfo.address}
+                        onChange={(e) => handleShippingChange('address', e.target.value)}
+                        required
+                      />
+                    </div>
                     <div>
                       <Label htmlFor="city">City</Label>
                       <Input
@@ -129,11 +260,28 @@ const Checkout = () => {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="zipCode">ZIP Code</Label>
+                      <Label htmlFor="state">Region/State</Label>
+                      <Input
+                        id="state"
+                        value={shippingInfo.state}
+                        onChange={(e) => handleShippingChange('state', e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="zipCode">Postal Code</Label>
                       <Input
                         id="zipCode"
                         value={shippingInfo.zipCode}
                         onChange={(e) => handleShippingChange('zipCode', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="country">Country</Label>
+                      <Input
+                        id="country"
+                        value={shippingInfo.country}
+                        onChange={(e) => handleShippingChange('country', e.target.value)}
                         required
                       />
                     </div>
@@ -141,110 +289,81 @@ const Checkout = () => {
                 </CardContent>
               </Card>
 
-              {/* Payment Information */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Payment Information</CardTitle>
+                  <CardTitle>Payment Method</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="nameOnCard">Name on Card</Label>
-                    <Input
-                      id="nameOnCard"
-                      value={paymentInfo.nameOnCard}
-                      onChange={(e) => handlePaymentChange('nameOnCard', e.target.value)}
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="cardNumber">Card Number</Label>
-                    <Input
-                      id="cardNumber"
-                      value={paymentInfo.cardNumber}
-                      onChange={(e) => handlePaymentChange('cardNumber', e.target.value)}
-                      placeholder="1234 5678 9012 3456"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="expiryDate">Expiry Date</Label>
-                      <Input
-                        id="expiryDate"
-                        value={paymentInfo.expiryDate}
-                        onChange={(e) => handlePaymentChange('expiryDate', e.target.value)}
-                        placeholder="MM/YY"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="cvv">CVV</Label>
-                      <Input
-                        id="cvv"
-                        value={paymentInfo.cvv}
-                        onChange={(e) => handlePaymentChange('cvv', e.target.value)}
-                        placeholder="123"
-                        required
-                      />
-                    </div>
-                  </div>
+                <CardContent>
+                  <PaymentMethodSelector onPaymentMethodChange={setPaymentMethod} />
                 </CardContent>
               </Card>
+
+              {paymentMethod === 'cash' && currentZone && (
+                <DeliveryInstructions
+                  zone={currentZone}
+                  paymentMethod={paymentMethod}
+                  amount={total}
+                />
+              )}
             </div>
 
             {/* Order Summary */}
             <div>
-              <Card className="sticky top-24">
+              <Card>
                 <CardHeader>
                   <CardTitle>Order Summary</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Order Items */}
-                  <div className="space-y-3">
+                <CardContent>
+                  <div className="space-y-4">
                     {items.map((item) => (
-                      <div key={`${item.id}-${item.size}`} className="flex items-center space-x-3">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="w-12 h-12 object-cover rounded"
-                        />
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{item.name}</p>
-                          <p className="text-xs text-gray-600">Size: {item.size} | Qty: {item.quantity}</p>
-                        </div>
-                        <p className="font-medium">${(item.price * item.quantity).toFixed(2)}</p>
+                      <div key={`${item.id}-${item.size}`} className="flex justify-between">
+                        <span>{item.quantity}x {item.name}</span>
+                        <span>{formatPrice(item.price * item.quantity)}</span>
                       </div>
                     ))}
-                  </div>
-                  
-                  <Separator />
-                  
-                  {/* Pricing */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Subtotal</span>
-                      <span>${totalPrice.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Shipping</span>
-                      <span>Free</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Tax</span>
-                      <span>${tax.toFixed(2)}</span>
-                    </div>
                     <Separator />
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>Total</span>
-                      <span>${total.toFixed(2)}</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Subtotal</span>
+                        <span>{formatPrice(subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Tax</span>
+                        <span>{formatPrice(tax)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Delivery Fee</span>
+                        <span>{currentZone ? formatPrice(deliveryFee) : 'Calculating...'}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between font-bold">
+                        <span>Total</span>
+                        <span className="text-xl">{formatPrice(total)}</span>
+                      </div>
                     </div>
+
+                    <Button
+                      type="submit"
+                      className="w-full mt-4"
+                      disabled={processing || validatingAddress || !currentZone}
+                    >
+                      {processing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : validatingAddress ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Validating Address...
+                        </>
+                      ) : !currentZone ? (
+                        'Please enter delivery address'
+                      ) : (
+                        `Place Order ${paymentMethod === 'card' ? '- Pay with Card' : '- Pay on Delivery'}`
+                      )}
+                    </Button>
                   </div>
-                  
-                  <Button type="submit" className="w-full" size="lg" disabled={processing}>
-                    {processing ? 'Processing...' : `Pay $${total.toFixed(2)}`}
-                  </Button>
                 </CardContent>
               </Card>
             </div>

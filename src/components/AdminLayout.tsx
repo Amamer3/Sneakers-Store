@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Package, 
@@ -8,20 +7,50 @@ import {
   Users, 
   LogOut,
   Menu,
-  BarChart3
+  BarChart3,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-interface AdminLayoutProps {
-  children: React.ReactNode;
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }> {
+  state = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4">
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Something went wrong</AlertTitle>
+            <AlertDescription>
+              An error occurred while loading this section. Please try refreshing the page.
+            </AlertDescription>
+          </Alert>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
-const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
-  const { user, logout } = useAuth();
+const AdminLayout = () => {
+  const { logout, isAdmin, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (!isAuthenticated || !isAdmin) {
+      navigate('/login');
+    }
+  }, [isAuthenticated, isAdmin, navigate]);
 
   const handleLogout = () => {
     logout();
@@ -29,86 +58,81 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   };
 
   const navItems = [
-    { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/products', icon: Package, label: 'Products' },
     { path: '/admin/orders', icon: ShoppingCart, label: 'Orders' },
     { path: '/admin/users', icon: Users, label: 'Users' },
     { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' }
   ];
 
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full">
-      <div className="p-6 border-b">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-2 rounded-lg font-bold text-xl inline-block">
-          SNKRS
-        </div>
-        <p className="text-sm text-gray-600 mt-2">Admin Panel</p>
-      </div>
-      
-      <nav className="flex-1 p-4">
-        <ul className="space-y-2">
-          {navItems.map(({ path, icon: Icon, label }) => (
-            <li key={path}>
-              <Link
-                to={path}
-                className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-                  location.pathname === path
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{label}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      
-      <div className="p-4 border-t">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-medium text-sm">{user?.name}</p>
-            <p className="text-xs text-gray-600">{user?.email}</p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+  const NavLinks = () => (
+    <div className="space-y-1">
+      {navItems.map((item) => (
+        <Link
+          key={item.path}
+          to={item.path}
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 ${
+            location.pathname === item.path ? 'bg-gray-100 text-gray-900' : ''
+          }`}
+        >
+          <item.icon className="h-4 w-4" />
+          {item.label}
+        </Link>
+      ))}
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white shadow-lg">
-        <SidebarContent />
-      </div>
-
-      {/* Mobile Header */}
-      <div className="lg:hidden bg-white shadow-sm border-b">
-        <div className="flex items-center justify-between p-4">
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-2 rounded-lg font-bold text-lg">
-            SNKRS
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex">
+        {/* Desktop Sidebar */}
+        <aside className="hidden lg:flex h-screen w-64 flex-col fixed left-0">
+          <div className="flex h-14 items-center border-b px-4 bg-white">
+            <span className="font-semibold">Admin Dashboard</span>
           </div>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <Menu className="h-6 w-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-64">
-              <SidebarContent />
-            </SheetContent>
-          </Sheet>
-        </div>
-      </div>
+          <div className="flex-1 overflow-auto border-r bg-white p-4">
+            <NavLinks />
+          </div>
+        </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 lg:pl-64">
-        <main className="p-6">
-          {children}
+        {/* Mobile Header with Sidebar Trigger */}
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-20 bg-white border-b">
+          <div className="flex h-14 items-center px-4 justify-between">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-6 w-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-64 p-4">
+                <div className="mb-4">
+                  <span className="font-semibold">Admin Dashboard</span>
+                </div>
+                <NavLinks />
+              </SheetContent>
+            </Sheet>
+            <span className="font-semibold">Admin Dashboard</span>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <main className="flex-1 lg:ml-64 pt-14 lg:pt-0">
+          <div className="hidden lg:flex h-14 items-center justify-end gap-4 border-b bg-white px-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-600 hover:text-red-700"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          </div>
+          <ErrorBoundary>
+            <div className="container py-4">
+              <Outlet />
+            </div>
+          </ErrorBoundary>
         </main>
       </div>
     </div>
