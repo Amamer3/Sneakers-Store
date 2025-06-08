@@ -1,12 +1,12 @@
 import { ReactNode } from "react";
 
 export interface Address {
-  zipCode: ReactNode;
   street: string;
   city: string;
   state: string;
   country: string;
   postalCode: string;
+  zipCode: string;
 }
 
 export interface OrderItem {
@@ -52,12 +52,18 @@ export interface PaginatedResponse<T> {
   hasMore: boolean;
 }
 
+export interface CreateOrderItemInput {
+  productId: string;
+  quantity: number;
+  name?: string;
+  price: number;
+  image?: string;
+}
+
 export interface CreateOrderInput {
-  items: {
-    productId: string;
-    quantity: number;
-  }[];
+  items: CreateOrderItemInput[];
   shippingAddress: Address;
+  total?: number;
 }
 
 export interface UpdateOrderStatusInput {

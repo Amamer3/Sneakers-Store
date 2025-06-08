@@ -93,14 +93,46 @@ export const orderService: OrderServiceInterface = {
       throw error;
     }
   },
-
   async createOrder(orderData: CreateOrderInput) {
     try {
-      const response = await apiClient.post<Order>('/api/orders', orderData);
+      if (!orderData.items?.length) {
+        throw new Error('Order must contain items');
+      }
+
+      // Validate total amount
+      const calculatedTotal = orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      if (!calculatedTotal || calculatedTotal <= 0) {
+        throw new Error('Valid total amount is required');
+      }
+
+      // Clean up the order data
+      const cleanOrderData = {
+        items: orderData.items.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          name: item.name || '',
+          price: parseFloat(item.price.toString()),
+          image: item.image || ''
+        })),
+        shippingAddress: {
+          street: orderData.shippingAddress.street.trim(),
+          city: orderData.shippingAddress.city.trim(),
+          state: orderData.shippingAddress.state.trim(),
+          country: orderData.shippingAddress.country.trim(),
+          postalCode: orderData.shippingAddress.postalCode,
+          zipCode: orderData.shippingAddress.zipCode
+        },
+        total: calculatedTotal
+      };
+
+      const response = await apiClient.post<Order>('/orders', cleanOrderData);
       return convertOrder(response.data);
     } catch (error: any) {
       console.error('Error creating order:', error);
-      throw new Error(error.response?.data?.message || 'Failed to create order');
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+      throw error;
     }
   },
 

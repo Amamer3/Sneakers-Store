@@ -126,9 +126,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Image Container */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
-        <Link to={`/products/${product.id}`}>
+      {/* Image Container */}      <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
+        <Link to={`/product/${product.id}`}>
           <img
             src={product.images[0]?.url || FALLBACK_IMAGE}
             alt={product.name}
@@ -200,8 +199,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
       {/* Content */}
       <div className="p-4 flex flex-col justify-between gap-3">
-        <div>
-          <Link to={`/products/${product.id}`}>
+        <div>          <Link to={`/product/${product.id}`}>
             <h3 className="text-base font-semibold text-gray-900 line-clamp-2 leading-tight hover:text-blue-600 transition-colors duration-200">
               {product.name}
             </h3>

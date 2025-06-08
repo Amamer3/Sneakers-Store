@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
@@ -16,15 +16,24 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, AlertTriangle, RefreshCcw } from 'lucide-react';
+import type { CreateOrderInput, Order } from '@/types/order';
 
-const Checkout = () => {
+interface OrderItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  image?: string;
+}
+
+export default function Checkout() {
   const { items, clearCart } = useCart();
   const { user } = useAuth();
-  const { validateAddress, currentZone } = useDelivery();
+  const { currentZone } = useDelivery();
   const { formatPrice } = useCurrency();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const deliveryFee = currentZone?.price || 0;
   const tax = subtotal * 0.08;
@@ -40,93 +49,68 @@ const Checkout = () => {
     zipCode: '',
     country: 'Ghana'
   });
-  
+
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
   const [processing, setProcessing] = useState(false);
-  const [validatingAddress, setValidatingAddress] = useState(false);
   const [networkError, setNetworkError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (shippingInfo.city && shippingInfo.country) {
-      validateShippingAddress();
-    }
-  }, [shippingInfo.city, shippingInfo.state, shippingInfo.country]);
 
   const handleShippingChange = (field: string, value: string) => {
     setShippingInfo(prev => ({ ...prev, [field]: value }));
   };
 
-  const validateShippingAddress = async () => {
-    try {
-      setValidatingAddress(true);
-      setNetworkError(null);      const result = await validateAddress({
-        street: shippingInfo.address,
-        city: shippingInfo.city,
-        state: shippingInfo.state,
-        postalCode: shippingInfo.zipCode,
-        country: shippingInfo.country
-      });
-
-      if (!result.isValid) {
-        toast({
-          title: "Invalid Delivery Address",
-          description: result.message || "Please check your delivery address",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to validate address';
-      setNetworkError(errorMessage);
-      console.error('Address validation error:', error);
-    } finally {
-      setValidatingAddress(false);
+  const handlePayment = async (order: Order) => {
+    if (!order?.id) {
+      throw new Error('Order ID is required');
     }
-  };
 
-  const handlePayment = async (orderId: string) => {
     try {
-      setProcessing(true);
       if (paymentMethod === 'card') {
-        // Initialize PayStack payment
+        if (!total || total <= 0) {
+          throw new Error('Valid payment amount is required');
+        }
+
+        if (!shippingInfo.email) {
+          throw new Error('Email address is required');
+        }
+
+        const amount = Math.abs(Number(total));
+        if (isNaN(amount)) {
+          throw new Error('Invalid payment amount');
+        }
+
         const payment = await paymentService.initializePayment(
-          orderId,
-          total,
+          order.id,
+          amount,
           shippingInfo.email
         );
 
         if (payment.status === 'success') {
-          // Verify the payment
           const verification = await paymentService.verifyPayment(payment.reference);
-          
           if (verification.status === 'success') {
-            // Payment successful
             clearCart();
             toast({
               title: 'Payment successful!',
               description: 'Your order has been confirmed.',
               variant: 'default',
             });
-            navigate(`/order/${orderId}/success?reference=${payment.reference}`);
+            navigate(`/order/${order.id}/success?reference=${payment.reference}`);
           } else {
-            // Payment failed
             setNetworkError('Payment verification failed. Please try again.');
-            await orderService.updateOrderStatus(orderId, { status: 'failed' });
+            await orderService.updateOrderStatus(order.id, { status: 'failed' });
           }
         }
       } else {
         // Cash on delivery
-        await orderService.updateOrderStatus(orderId, { status: 'pending' });
+        await orderService.updateOrderStatus(order.id, { status: 'pending' });
         clearCart();
-        navigate(`/order/${orderId}/success`);
+        navigate(`/order/${order.id}/success`);
       }
     } catch (error: any) {
       console.error('Payment error:', error);
       setNetworkError(error.message || 'Payment failed. Please try again.');
-      if (orderId) {
-        await orderService.updateOrderStatus(orderId, { status: 'failed' });
+      if (order.id) {
+        await orderService.updateOrderStatus(order.id, { status: 'failed' });
       }
-    } finally {
-      setProcessing(false);
     }
   };
 
@@ -144,55 +128,86 @@ const Checkout = () => {
     }
 
     try {
-      setProcessing(true);
+      // Validate required fields
+      const requiredFields = {
+        fullName: 'Full Name',
+        email: 'Email',
+        phoneNumber: 'Phone Number',
+        address: 'Street Address',
+        city: 'City',
+        state: 'State',
+        country: 'Country'
+      };      const missingFields = (Object.entries(requiredFields) as Array<[keyof typeof shippingInfo, string]>)
+        .filter(([key]) => !shippingInfo[key])
+        .map(([_, label]) => label);
 
-      // Create the order first
-      const order = await orderService.createOrder({
+      if (missingFields.length > 0) {
+        toast({
+          title: 'Missing Information',
+          description: `Please fill in: ${missingFields.join(', ')}`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setProcessing(true);      const calculatedTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      if (!calculatedTotal || calculatedTotal <= 0) {
+        throw new Error('Invalid order total');
+      }
+
+      const orderInput: CreateOrderInput = {
         items: items.map(item => ({
           productId: item.id,
-          quantity: item.quantity
+          quantity: item.quantity,
+          name: item.name,
+          price: item.price,
+          image: item.image
         })),
         shippingAddress: {
-          street: shippingInfo.address,
-          city: shippingInfo.city,
-          state: shippingInfo.state,
-          country: shippingInfo.country,
-          postalCode: shippingInfo.zipCode,
-          zipCode: ''
-        }
-      });
+          street: shippingInfo.address.trim(),
+          city: shippingInfo.city.trim(),
+          state: shippingInfo.state.trim(),
+          country: shippingInfo.country.trim(),
+          postalCode: shippingInfo.zipCode ? shippingInfo.zipCode.trim() : '',
+          zipCode: shippingInfo.zipCode || ''
+        },
+        total: calculatedTotal
+      };
+
+      const order = await orderService.createOrder(orderInput);
+      
+      if (!order?.id) {
+        throw new Error('Failed to create order: No order ID received');
+      }
 
       // Process payment
-      await handlePayment(order.id);
+      await handlePayment(order);
     } catch (error: any) {
-      console.error('Checkout error:', error);
+      console.error('Order error:', error);
       setNetworkError(error.message || 'Failed to process order. Please try again.');
     } finally {
       setProcessing(false);
     }
   };
 
-  // Show network error alert
+  // Display network error if any
   if (networkError) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Alert variant="destructive" className="mb-4">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Network Error</AlertTitle>
-          <AlertDescription className="flex items-center justify-between">
-            <span>{networkError}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.location.reload()}
-              className="ml-4"
-            >
-              <RefreshCcw className="mr-2 h-4 w-4" />
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      </div>
+      <Alert variant="destructive" className="m-4">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription className="flex flex-col gap-2">
+          {networkError}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setNetworkError(null)}
+          >
+            <RefreshCcw className="mr-2 h-4 w-4" />
+            Try Again
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 
@@ -345,17 +360,11 @@ const Checkout = () => {
                     <Button
                       type="submit"
                       className="w-full mt-4"
-                      disabled={processing || validatingAddress || !currentZone}
-                    >
-                      {processing ? (
+                      disabled={processing || !currentZone}
+                    >                      {processing ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Processing...
-                        </>
-                      ) : validatingAddress ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Validating Address...
                         </>
                       ) : !currentZone ? (
                         'Please enter delivery address'
@@ -372,6 +381,4 @@ const Checkout = () => {
       </div>
     </div>
   );
-};
-
-export default Checkout;
+}
