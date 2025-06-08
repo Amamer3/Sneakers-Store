@@ -4,10 +4,10 @@ export interface ExchangeRates {
   timestamp: number;
 }
 
-// Fixed exchange rates
-const DEFAULT_RATES: ExchangeRates = {
-  USD: 1,
-  GHS: 11.85, // Updated GHS to USD rate as of June 2025
+// Fixed exchange rates (1 USD = 11.50 GHS as of 2025)
+export const DEFAULT_RATES: ExchangeRates = {
+  GHS: 1, // Base currency
+  USD: 1/11.50, // Conversion rate from GHS to USD
   timestamp: Date.now()
 };
 
@@ -22,16 +22,21 @@ export const currencyService = {
    * @param amount The amount to convert
    * @param fromCurrency The currency to convert from ('USD' | 'GHS')
    * @param toCurrency The currency to convert to ('USD' | 'GHS')
-   */
-  convert(amount: number, fromCurrency: 'USD' | 'GHS', toCurrency: 'USD' | 'GHS'): number {
-    if (fromCurrency === toCurrency) return amount;
-    
+   */  convert(amount: number, fromCurrency: 'USD' | 'GHS', toCurrency: 'USD' | 'GHS'): number {
+    // Since we store everything in GHS, and GHS is our base currency:
     const rates = DEFAULT_RATES;
-    if (fromCurrency === 'USD' && toCurrency === 'GHS') {
-      return amount * rates.GHS;
-    } else if (fromCurrency === 'GHS' && toCurrency === 'USD') {
-      return amount / rates.GHS;
+    
+    // If we're already in GHS and want GHS, return as is
+    if (toCurrency === 'GHS') {
+      return amount;
     }
+    
+    // Converting from GHS to USD
+    if (toCurrency === 'USD') {
+      // Convert by multiplying with the USD rate (which is 1/11.50)
+      return Math.round((amount * rates.USD) * 100) / 100;
+    }
+    
     return amount;
   },
 

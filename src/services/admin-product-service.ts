@@ -127,10 +127,11 @@ export const adminProductService = {
           'Content-Type': 'multipart/form-data',
         },
         timeout: 120000, // 120 seconds for multiple files
-      });
-
-      console.debug('[AdminProductService] Image upload response:', response.data);
-      return response.data;
+      });      console.debug('[AdminProductService] Image upload response:', response.data);
+      
+      // Ensure we always return an array of image objects
+      const images = response.data;
+      return Array.isArray(images) ? images : [images];
     } catch (error: any) {
       console.error('[AdminProductService] Image upload error:', {
         error,
