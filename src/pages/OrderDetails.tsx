@@ -15,14 +15,17 @@ import { useToast } from '@/components/ui/use-toast';
 import { useCurrency } from '@/context/CurrencyContext';
 
 // Utility function for dates
-const formatDate = (date: Date) => {
-  if (!(date instanceof Date) || isNaN(date.getTime())) {
-    return 'N/A';
-  }
-  return date.toLocaleDateString('en-US', {
+const formatDate = (dateString: string | Date) => {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return 'N/A';
+  
+  return date.toLocaleDateString('en-GB', {
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   });
 };
 
@@ -181,21 +184,42 @@ const OrderDetails: React.FC = () => {
 
               {/* Order Information */}
               <div className="border-t pt-4">
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700">Order Information</h3>
-                    <div className="mt-2 text-sm text-gray-600 space-y-1">
-                      <p>Ordered on: {formatDate(new Date(order.createdAt))}</p>
-                      <p>Last updated: {formatDate(new Date(order.updatedAt))}</p>
+                <div className="space-y-4">                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Order Information */}
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700">Order Information</h3>
+                      <div className="mt-2 text-sm text-gray-600 space-y-1">
+                        <p>Ordered on: {formatDate(order.createdAt)}</p>
+                        <p>Last updated: {formatDate(order.updatedAt)}</p>
+                        <p>Status: {order.status.charAt(0).toUpperCase() + order.status.slice(1)}</p>
+                        {order.paymentReference && (
+                          <p>Payment Reference: {order.paymentReference}</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700">Shipping Address</h3>
-                    <div className="mt-2 text-sm text-gray-600 space-y-1">
-                      <p>{order.shippingAddress.street}</p>
-                      <p>{order.shippingAddress.city}, {order.shippingAddress.state}</p>
-                      <p>{order.shippingAddress.country} {order.shippingAddress.zipCode}</p>
+                    {/* Customer Details */}
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700">Customer Details</h3>
+                      <div className="mt-2 text-sm text-gray-600 space-y-1">
+                        <p>Name: {order.shipping?.name || order.user?.name || 'N/A'}</p>
+                        <p>Email: {order.shipping?.email || order.user?.email || 'N/A'}</p>
+                        <p>Phone: {order.shipping?.phone || 'N/A'}</p>
+                      </div>
+                    </div>
+
+                    {/* Shipping Address */}
+                    <div className="md:col-span-2">
+                      <h3 className="text-sm font-medium text-gray-700">Shipping Address</h3>
+                      <div className="mt-2 text-sm text-gray-600 space-y-1">
+                        <p>{order.shippingAddress.street}</p>
+                        <p>
+                          {order.shippingAddress.city}
+                          {order.shippingAddress.state && `, ${order.shippingAddress.state}`}
+                          {order.shippingAddress.zipCode && ` ${order.shippingAddress.zipCode}`}
+                        </p>
+                        <p>{order.shippingAddress.country}</p>
+                      </div>
                     </div>
                   </div>
                 </div>

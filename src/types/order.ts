@@ -6,7 +6,8 @@ export interface Address {
   state: string;
   country: string;
   postalCode: string;
-  zipCode: string;
+  zipCode?: string;
+  phone: string; // Required phone number
 }
 
 export interface OrderItem {
@@ -30,25 +31,31 @@ export interface UserInfo {
   name: string;
 }
 
+export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'failed';
+
 export interface Order {
   shippingAddress: Address;
   id: string;
   userId: string;
   items: OrderItem[];
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'failed';
+  status: OrderStatus;
   total: number;
   shipping: ShippingInfo;
   user: UserInfo;
   createdAt: string | Date;
   updatedAt: string | Date;
+  paymentReference?: string;
+  tax: number;
+  deliveryFee: number;
 }
 
 export interface PaginatedResponse<T> {
   items: T[];
-  total: number;
-  page: number;
-  limit: number;
+  totalItems: number;
+  currentPage: number;
   totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
   hasMore: boolean;
 }
 
@@ -63,7 +70,11 @@ export interface CreateOrderItemInput {
 export interface CreateOrderInput {
   items: CreateOrderItemInput[];
   shippingAddress: Address;
-  total?: number;
+  total: number;
+  paymentReference?: string;
+  status?: 'pending' | 'processing' | 'failed' | 'success';
+  tax: number;
+  deliveryFee: number;
 }
 
 export interface UpdateOrderStatusInput {

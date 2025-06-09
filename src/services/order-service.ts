@@ -1,5 +1,5 @@
 import apiClient from '@/lib/api-client';
-import { Order, PaginatedResponse, CreateOrderInput, UpdateOrderStatusInput } from '@/types/order';
+import { Order, PaginatedResponse, CreateOrderInput, UpdateOrderStatusInput, OrderStatus } from '@/types/order';
 
 const convertOrder = (order: any): Order => ({
   ...order,
@@ -13,143 +13,177 @@ const convertOrder = (order: any): Order => ({
   }))
 });
 
-interface OrderSort {
-  sortBy?: 'createdAt' | 'total' | 'status';
+const convertPaginatedResponse = (
+  data: any,
+  page: number,
+  limit: number
+): PaginatedResponse<Order> => {
+  const items = (data.items || []).map(convertOrder);
+  const totalItems = data.totalItems || data.total || 0;
+  const totalPages = data.totalPages || Math.ceil(totalItems / limit);
+  const currentPage = data.currentPage || data.page || page;
+  return {
+    items,
+    totalItems,
+    currentPage,
+    totalPages,
+    hasNextPage: currentPage < totalPages,
+    hasPreviousPage: currentPage > 1,
+    hasMore: currentPage < totalPages
+  };
+};
+
+interface OrderQueryParams {
+  status?: OrderStatus;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }
 
-interface OrderServiceInterface {
-  getOrders(page?: number, limit?: number, status?: Order['status'], sort?: OrderSort): Promise<PaginatedResponse<Order>>;
-  getUserOrders(page?: number, limit?: number, status?: Order['status']): Promise<PaginatedResponse<Order>>;
-  getOrderById(orderId: string): Promise<Order>;
+interface OrderServiceInterface {  // User endpoints
   createOrder(orderData: CreateOrderInput): Promise<Order>;
+  getMyOrders(): Promise<PaginatedResponse<Order>>;
+  getOrderById(orderId: string): Promise<Order>;
+
+  // Debug method to print order data
+  logOrderData(orderData: CreateOrderInput): void;
+  
+  // Admin endpoints
+  getOrders(params?: OrderQueryParams): Promise<PaginatedResponse<Order>>;
   updateOrderStatus(orderId: string, statusData: UpdateOrderStatusInput): Promise<Order>;
 }
 
 export const orderService: OrderServiceInterface = {
-  async getOrders(page = 1, limit = 10, status?: Order['status'], sort?: OrderSort) {
-    try {
-      const response = await apiClient.get<PaginatedResponse<Order>>('/api/orders', {
-        params: { 
-          page, 
-          limit, 
-          status,
-          sortBy: sort?.sortBy,
-          sortOrder: sort?.sortOrder
+  // POST /api/orders - Create a new order (requires user authentication)
+  async createOrder(orderData: CreateOrderInput): Promise<Order> {
+    try {      // Log the complete order data for debugging
+      this.logOrderData(orderData);
+
+      // Make the API call
+      const response = await apiClient.post('/api/orders', orderData);
+      
+      // Convert and validate the response
+      if (!response.data) {
+        throw new Error('No data received from order creation');
+      }
+
+      if (!response.data.id) {
+        throw new Error('Order created but no ID received');
+      }
+
+      return convertOrder(response.data);
+    } catch (error: any) {
+      // Log detailed error information
+      console.error('[OrderService] Error creating order:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        orderData: {
+          itemCount: orderData.items.length,
+          total: orderData.total,
+          hasShipping: !!orderData.shippingAddress,
+          status: orderData.status
         }
       });
-      
-      if (!response.data?.items) {
-        throw new Error('Invalid response format from server');
+
+      if (error.response?.data?.message) {
+        throw new Error(`Failed to create order: ${error.response.data.message}`);
       }
 
-      return {
-        ...response.data,
-        items: response.data.items.map(convertOrder)
-      };
-    } catch (error: any) {
-      console.error('Error fetching orders:', error);
-      if (error.response?.status === 404) {
-        throw new Error('Orders endpoint not found. Please check API configuration.');
-      } else if (error.response?.status === 403) {
-        throw new Error('You do not have permission to view orders.');
-      }
-      throw new Error(error.response?.data?.message || 'Failed to fetch orders. Please try again.');
+      throw new Error('Failed to create order: ' + error.message);
     }
   },
 
-  async getUserOrders(page = 1, limit = 10, status?: Order['status']) {
+  // GET /api/orders/my - Get authenticated user's orders
+  async getMyOrders(): Promise<PaginatedResponse<Order>> {
     try {
-      const response = await apiClient.get<PaginatedResponse<Order>>('/api/orders/my', {
-        params: { page, limit, status }
-      });
-      
-      if (!response.data?.items) {
+      const response = await apiClient.get<any>('/api/orders/my');
+      if (!response.data) {
         throw new Error('Invalid response format from server');
       }
-
-      return {
-        ...response.data,
-        items: response.data.items.map(convertOrder)
-      };
+      return convertPaginatedResponse(response.data, 1, 10);
     } catch (error: any) {
       console.error('Error fetching user orders:', error);
-      if (error.response?.status === 404) {
-        throw new Error('User orders endpoint not found. Please check API configuration.');
-      }
-      throw error;
+      throw new Error(error.response?.data?.message || 'Failed to fetch user orders');
     }
   },
 
-  async getOrderById(orderId: string) {
+  // GET /api/orders/:id - Get specific order by ID
+  async getOrderById(orderId: string): Promise<Order> {
     try {
-      const response = await apiClient.get<Order>(`/api/orders/${orderId}`);
+      const response = await apiClient.get<any>(`/api/orders/${orderId}`);
+      if (!response.data) {
+        throw new Error('Order not found');
+      }
       return convertOrder(response.data);
     } catch (error: any) {
       console.error('Error fetching order:', error);
-      if (error.response?.status === 404) {
-        throw new Error('Order not found');
-      }
-      throw error;
+      throw new Error(error.response?.data?.message || 'Failed to fetch order');
     }
   },
-  async createOrder(orderData: CreateOrderInput) {
+
+  // GET /api/orders - Get all orders (admin only)
+  async getOrders(
+    pageOrParams?: number | OrderQueryParams,
+    limit?: number,
+    status?: OrderStatus,
+    sort?: { sortBy?: string; sortOrder?: 'asc' | 'desc' }
+  ): Promise<PaginatedResponse<Order>> {
     try {
-      if (!orderData.items?.length) {
-        throw new Error('Order must contain items');
+      let params: OrderQueryParams;
+      
+      if (typeof pageOrParams === 'object') {
+        params = pageOrParams;
+      } else {
+        params = {
+          page: pageOrParams || 1,
+          limit: limit || 10,
+          status: status,
+          ...(sort || {})
+        };
       }
 
-      // Validate total amount
-      const calculatedTotal = orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      if (!calculatedTotal || calculatedTotal <= 0) {
-        throw new Error('Valid total amount is required');
+      const response = await apiClient.get<any>('/api/orders', { params });
+      if (!response.data) {
+        throw new Error('Invalid response format from server');
       }
-
-      // Clean up the order data
-      const cleanOrderData = {
-        items: orderData.items.map(item => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          name: item.name || '',
-          price: parseFloat(item.price.toString()),
-          image: item.image || ''
-        })),
-        shippingAddress: {
-          street: orderData.shippingAddress.street.trim(),
-          city: orderData.shippingAddress.city.trim(),
-          state: orderData.shippingAddress.state.trim(),
-          country: orderData.shippingAddress.country.trim(),
-          postalCode: orderData.shippingAddress.postalCode,
-          zipCode: orderData.shippingAddress.zipCode
-        },
-        total: calculatedTotal
-      };
-
-      const response = await apiClient.post<Order>('/orders', cleanOrderData);
-      return convertOrder(response.data);
+      return convertPaginatedResponse(
+        response.data,
+        params.page || 1,
+        params.limit || 10
+      );
     } catch (error: any) {
-      console.error('Error creating order:', error);
-      if (error.response?.data?.message) {
-        throw new Error(error.response.data.message);
-      }
-      throw error;
+      console.error('Error fetching orders:', error);
+      throw new Error(error.response?.data?.message || 'Failed to fetch orders');
     }
   },
 
-  async updateOrderStatus(orderId: string, statusData: UpdateOrderStatusInput) {
+  // PUT/PATCH /api/orders/:id/status - Update order status (admin only)
+  async updateOrderStatus(orderId: string, statusData: UpdateOrderStatusInput): Promise<Order> {
     try {
-      const response = await apiClient.patch<Order>(`/api/orders/${orderId}/status`, statusData);
+      const response = await apiClient.patch<any>(`/api/orders/${orderId}/status`, statusData);
       return convertOrder(response.data);
     } catch (error: any) {
       console.error('Error updating order status:', error);
-      if (error.response?.status === 404) {
-        throw new Error('Order not found');
-      } else if (error.response?.status === 403) {
-        throw new Error('You do not have permission to update order status');
-      } else if (error.response?.status === 401) {
-        throw new Error('Please log in to update order status');
-      }
-      throw new Error(error.response?.data?.message || 'Failed to update order status. Please try again later.');
+      throw new Error(error.response?.data?.message || 'Failed to update order status');
     }
-  }
+  },
+
+  // Debug method to log order data
+  logOrderData(orderData: CreateOrderInput): void {
+    console.log('[OrderService] Order Data Debug:', {
+      items: orderData.items.map(item => ({
+        productId: item.productId,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity
+      })),
+      shippingAddress: orderData.shippingAddress,
+      total: orderData.total,
+      status: orderData.status,
+      deliveryFee: orderData.deliveryFee,
+      tax: orderData.tax
+    });
+  },
 };

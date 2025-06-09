@@ -17,6 +17,7 @@ import Cart from "./pages/Cart";
 import Wishlist from "./pages/Wishlist";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
+import PaymentCallback from "./pages/PaymentCallback";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
@@ -78,6 +79,7 @@ const App = () => (
                       <Route path="/profile" element={<MainLayoutWrapper><Profile /></MainLayoutWrapper>} />
                       <Route path="/order/:orderId" element={<MainLayoutWrapper><OrderDetails /></MainLayoutWrapper>} />
                       <Route path="/order/:orderId/success" element={<MainLayoutWrapper><OrderSuccess /></MainLayoutWrapper>} />
+                      <Route path="/payment/callback" element={<MainLayoutWrapper><PaymentCallback /></MainLayoutWrapper>} />
                     </Route>                    {/* Admin Routes */}
                     <Route path="/admin/login" element={<AdminLogin />} />
                     <Route element={<AdminRouteWrapper />}>

@@ -127,25 +127,21 @@ const Orders = () => {
         pageLoading: isPageChange,
         error: null 
       }));
-      
-      const response = await orderService.getOrders(
+        const response = await orderService.getOrders({
         page,
-        state.limit,
-        selectedStatus === 'all' ? undefined : selectedStatus,
-        {
-          sortBy: state.sortBy,
-          sortOrder: state.sortOrder
-        }
-      );
-      
-      setState(prev => ({
+        limit: state.limit,
+        status: selectedStatus === 'all' ? undefined : selectedStatus,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder
+      });
+        setState(prev => ({
         ...prev,
         orders: response.items,
-        total: response.total,
-        page: response.page,
-        limit: response.limit,
+        total: response.totalItems,
+        page: response.currentPage,
+        limit: state.limit,
         totalPages: response.totalPages,
-        hasMore: response.hasMore,
+        hasMore: response.hasNextPage,
         loading: false,
         pageLoading: false
       }));
@@ -261,30 +257,36 @@ const Orders = () => {
             <div className="space-y-2">
               <p className="text-sm text-gray-500">
                 Items: {order.items.length} | Total: {formatPrice(order.total)}
-              </p>
-              <p className="text-sm text-gray-500">
-                Created: {formatOrderDate(order.createdAt)}
+              </p>              <p className="text-sm text-gray-500">
+                Created: {new Date(order.createdAt).toLocaleString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
               </p>
               
               {/* Customer Information */}
-              <div className="mt-4 space-y-2">
-                <h4 className="text-sm font-medium">Customer Details:</h4>
+              <div className="mt-4 space-y-2">                <h4 className="text-sm font-medium">Customer Details:</h4>
                 <div className="text-sm text-gray-600">
-                  <p>Name: {order.shipping?.name || 'N/A'}</p>
-                  <p>Email: {order.user?.email || 'N/A'}</p>
-                  <p>Phone: {order.shipping?.phone || 'N/A'}</p>
+                  <p>Name: {order.shipping?.name || order.user?.name || 'N/A'}</p>
+                  <p>Email: {order.shipping?.email || order.user?.email || 'N/A'}</p>
+                  <p>Phone: {order.shipping?.phone || order.shippingAddress?.phone || 'N/A'}</p>
                 </div>
-              </div>
-
-              {/* Shipping Information */}
+              </div>              {/* Shipping Information */}
               <div className="mt-4 space-y-2">
                 <h4 className="text-sm font-medium">Shipping Address:</h4>
                 <div className="text-sm text-gray-600">
-                  {order.shipping?.address ? (
+                  {(order.shippingAddress || order.shipping?.address) ? (
                     <>
-                      <p>{order.shipping.address.street}</p>
-                      <p>{order.shipping.address.city}, {order.shipping.address.state} {order.shipping.address.postalCode}</p>
-                      <p>{order.shipping.address.country}</p>
+                      <p>{order.shippingAddress?.street || order.shipping?.address?.street}</p>
+                      <p>
+                        {order.shippingAddress?.city || order.shipping?.address?.city}, {' '}
+                        {order.shippingAddress?.state || order.shipping?.address?.state} {' '}
+                        {order.shippingAddress?.postalCode || order.shipping?.address?.postalCode}
+                      </p>
+                      <p>{order.shippingAddress?.country || order.shipping?.address?.country}</p>
                     </>
                   ) : (
                     <p>No shipping address provided</p>

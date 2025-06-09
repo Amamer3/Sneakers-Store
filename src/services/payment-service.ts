@@ -1,13 +1,15 @@
-import PaystackPop from '@paystack/inline-js';
 import apiClient from '@/lib/api-client';
+import type { PaystackPopup, PaystackResponse } from '@/types/paystack';
+
+declare global {
+  interface Window {
+    PaystackPop: PaystackPopup;
+  }
+}
 
 export interface PaymentInitialization {
   reference: string;
-  authorization_url?: string;
-  access_code?: string;
-  amount: number;
-  email: string;
-  status: string;
+  orderId: string;
 }
 
 export interface PaymentVerification {
@@ -15,159 +17,128 @@ export interface PaymentVerification {
   reference: string;
   orderId: string;
   amount: number;
-  transaction_date?: string;
-  currency?: string;
-}
-
-// Make sure this matches your environment variable name
-const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
-
-interface PaystackResponse {
-  reference: string;
-  trans: string;
-  status: string;
-  message: string;
-  transaction: string;
-  trxref?: string;
-}
-
-interface PaystackTransaction {
-  reference: string;
-  status: string;
-  amount: number;
   currency: string;
-  transaction_date: string;
-  customer: {
-    email: string;
-    metadata?: any;
-  };
-  metadata: {
-    orderId: string;
+  metadata?: {
+    orderId?: string;
+    customerId?: string;
   };
 }
 
-export const paymentService = {
-  async initializePayment(orderId: string, amount: number, email: string): Promise<PaymentInitialization> {
-    if (!orderId || !amount || !email) {
-      throw new Error('Amount, orderId, and email are required');
+export interface InitializePaymentData {
+  /**
+   * Amount in Ghana Cedis (GHS).
+   * Example: For 100 Ghana Cedis, pass 100.00
+   */
+  amount: number;
+  email: string;
+  orderId: string;
+  customerId: string;
+  metadata?: Record<string, unknown>;
+}
+
+type PaymentService = {
+  logPaymentData: (data: InitializePaymentData) => void;
+  initializePayment: (data: InitializePaymentData) => Promise<PaymentInitialization>;
+  verifyPayment: (reference: string) => Promise<PaymentVerification>;
+  isPaystackLoaded: () => boolean;
+  clearPaymentData: () => void;
+  getStoredPaymentData: () => { reference: string | null; orderId: string | null };
+};
+
+export const paymentService: PaymentService = {
+  logPaymentData: (data: InitializePaymentData): void => {
+    console.log('[PaymentService] Initializing payment:', {
+      amount: data.amount,
+      email: data.email,
+      orderId: data.orderId,
+      customerId: data.customerId,
+      metadata: data.metadata
+    });
+  },
+
+  initializePayment: (data: InitializePaymentData): Promise<PaymentInitialization> => {
+    if (!data.amount || !data.orderId || !data.email) {
+      return Promise.reject(new Error('Amount, orderId, and email are required'));
     }
 
-    if (!PAYSTACK_PUBLIC_KEY) {
-      throw new Error('Paystack public key is not configured');
+    if (!import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) {
+      return Promise.reject(new Error('Paystack public key is not configured'));
     }
 
-    try {
-      // Ensure amount is positive and convert to kobo (smallest currency unit)
-      const amountInKobo = Math.round(Math.abs(amount) * 100);
-      
-      // First, initialize the payment on our backend to get a reference
-      const response = await apiClient.post('/payment/initialize', {
-        orderId,
-        amount: amountInKobo,
-        email: email.trim(),
-        metadata: {
-          orderId,
-          custom_fields: [
-            {
-              display_name: "Order ID",
-              variable_name: "orderId",
-              value: orderId
-            }
-          ]
-        },
-        currency: "GHS" // Ghanaian Cedis
-      });
+    const amountInPesewas = Math.round(data.amount * 100);
+    const reference = `PAY_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      if (!response.data || !response.data.reference) {
-        throw new Error('Invalid response from payment initialization');
+    return new Promise<PaymentInitialization>((resolve, reject) => {
+      if (!window.PaystackPop) {
+        reject(new Error('Paystack is not loaded'));
+        return;
       }
 
-      // Initialize Paystack inline popup
-      return new Promise((resolve, reject) => {
-        const paystack = new PaystackPop();
-        paystack.newTransaction({
-          key: PAYSTACK_PUBLIC_KEY,
-          email: email.trim(),
-          amount: amountInKobo,
-          ref: response.data.reference,
-          currency: "GHS",
+      try {        const handler = window.PaystackPop.setup({
+          key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
+          email: data.email,
+          amount: amountInPesewas,
+          currency: 'GHS',
+          ref: reference,
           metadata: {
-            orderId,
-            custom_fields: [
-              {
-                display_name: "Order ID",
-                variable_name: "orderId",
-                value: orderId
-              }
-            ]
+            orderId: data.orderId,
+            customerId: data.customerId,
+            ...data.metadata
           },
-          onSuccess: (transaction: PaystackResponse) => {
-            resolve({
-              reference: transaction.reference || transaction.trxref || '',
-              amount: amount,
-              email,
-              status: 'success'
-            });
-          },
-          onCancel: () => {
+          onClose: function() {
             reject(new Error('Payment cancelled by user'));
+          },
+          callback: function(response) {
+            if (response.status === 'success') {
+              paymentService.verifyPayment(response.reference)
+                .then(() => {
+                  localStorage.setItem('paymentReference', response.reference);
+                  localStorage.setItem('orderId', data.orderId);
+                  resolve({ reference: response.reference, orderId: data.orderId });
+                })
+                .catch((error) => {
+                  reject(error instanceof Error ? error : new Error('Payment verification failed'));
+                });
+            } else {
+              reject(new Error('Payment was not successful'));
+            }
           }
         });
-      });
-    } catch (error: any) {
-      console.error('Error initializing payment:', error);
-      throw new Error(error.response?.data?.message || 'Failed to initialize payment');
+
+        handler.openIframe();
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error('Failed to initialize payment'));
+      }
+    });
+  },
+
+  verifyPayment: async (reference: string): Promise<PaymentVerification> => {
+    if (!reference) {
+      throw new Error('Payment reference is required');
+    }
+
+    try {
+      const response = await apiClient.get<PaymentVerification>(`/payment/verify/${reference}`);
+      console.log('[PaymentService] Payment verified:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[PaymentService] Payment verification error:', error);
+      throw error instanceof Error ? error : new Error('Payment verification failed');
     }
   },
 
-  async verifyPayment(reference: string): Promise<PaymentVerification> {
-    try {
-      // Verify payment with our backend which will in turn verify with Paystack
-      const response = await apiClient.get<PaystackTransaction>(`/payment/verify/${reference}`);
-      
-      if (!response.data) {
-        throw new Error('Invalid response from payment verification');
-      }
-
-      return {
-        status: response.data.status,
-        reference: response.data.reference,
-        orderId: response.data.metadata.orderId,
-        amount: response.data.amount / 100, // Convert from kobo back to cedis
-        transaction_date: response.data.transaction_date,
-        currency: response.data.currency
-      };
-    } catch (error: any) {
-      console.error('Error verifying payment:', error);
-      throw new Error(error.response?.data?.message || 'Failed to verify payment');
-    }
+  isPaystackLoaded: (): boolean => {
+    return typeof window !== 'undefined' && 'PaystackPop' in window;
+  },
+  clearPaymentData: (): void => {
+    localStorage.removeItem('paymentReference');
+    localStorage.removeItem('orderId');
   },
 
-  async retryVerification(reference: string): Promise<PaymentVerification> {
-    try {
-      // Implement retry logic with exponential backoff
-      const maxRetries = 3;
-      let retryCount = 0;
-      let lastError: Error | null = null;
-
-      while (retryCount < maxRetries) {
-        try {
-          const verification = await this.verifyPayment(reference);
-          return verification;
-        } catch (error: any) {
-          lastError = error;
-          retryCount++;
-          if (retryCount < maxRetries) {
-            // Wait for exponentially longer times between retries (1s, 2s, 4s)
-            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount - 1) * 1000));
-          }
-        }
-      }
-
-      throw lastError || new Error('Failed to verify payment after multiple attempts');
-    } catch (error: any) {
-      console.error('Error in retry verification:', error);
-      throw new Error(error.message || 'Failed to verify payment');
-    }
+  getStoredPaymentData: (): { reference: string | null; orderId: string | null } => {
+    return {
+      reference: localStorage.getItem('paymentReference'),
+      orderId: localStorage.getItem('orderId')
+    };
   }
 };

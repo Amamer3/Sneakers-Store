@@ -26,6 +26,17 @@ interface OrderItem {
   image?: string;
 }
 
+interface CheckoutState {
+  isProcessing: boolean;
+  currentStep: 'validating' | 'processing-payment' | 'creating-order' | 'completed';
+  error: string | null;
+  errorDetails?: {
+    code?: string;
+    details?: string;
+    timestamp?: string;
+  };
+}
+
 export default function Checkout() {
   const { items, clearCart } = useCart();
   const { user } = useAuth();
@@ -53,140 +64,280 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
   const [processing, setProcessing] = useState(false);
   const [networkError, setNetworkError] = useState<string | null>(null);
+  const [checkoutState, setCheckoutState] = useState<CheckoutState>({
+    isProcessing: false,
+    currentStep: 'validating',
+    error: null
+  });
 
   const handleShippingChange = (field: string, value: string) => {
     setShippingInfo(prev => ({ ...prev, [field]: value }));
   };
-
-  const handlePayment = async (order: Order) => {
-    if (!order?.id) {
-      throw new Error('Order ID is required');
+  const createOrder = async () => {
+    const calculatedTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0) + tax + deliveryFee;
+    if (!calculatedTotal || calculatedTotal <= 0) {
+      throw new Error('Invalid order total');
     }
 
-    try {
-      if (paymentMethod === 'card') {
-        if (!total || total <= 0) {
-          throw new Error('Valid payment amount is required');
-        }
+    if (!shippingInfo.phoneNumber?.trim()) {
+      throw new Error('Phone number is required');
+    }
 
-        if (!shippingInfo.email) {
-          throw new Error('Email address is required');
-        }
+    const orderInput: CreateOrderInput = {
+      items: items.map(item => ({
+        productId: item.id,
+        quantity: item.quantity,
+        name: item.name,
+        price: item.price,
+        image: item.image
+      })),      shippingAddress: {
+        street: shippingInfo.address.trim(),
+        city: shippingInfo.city.trim(),
+        state: shippingInfo.state.trim(),
+        country: shippingInfo.country.trim(),
+        postalCode: shippingInfo.zipCode || '',
+        phone: shippingInfo.phoneNumber.trim()
+      },
+      total: calculatedTotal,
+      status: paymentMethod === 'card' ? 'processing' : 'pending',
+      deliveryFee,
+      tax
+    };
 
-        const amount = Math.abs(Number(total));
-        if (isNaN(amount)) {
-          throw new Error('Invalid payment amount');
-        }
+    const order = await orderService.createOrder(orderInput);
+    if (!order?.id) {
+      throw new Error('Failed to create order: No order ID received');
+    }
+    return order;
+  };  const processPayment = async (order: Order): Promise<string | undefined> => {
+    if (paymentMethod === 'cash') {
+      return undefined;
+    }
 
-        const payment = await paymentService.initializePayment(
-          order.id,
-          amount,
-          shippingInfo.email
-        );
+    // Verify Paystack is properly configured
+    if (!import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) {
+      toast({
+        title: 'Configuration Error',
+        description: 'Payment system is not properly configured. Please contact support.',
+        variant: 'destructive',
+      });
+      throw new Error('Paystack public key is not configured');
+    }
 
-        if (payment.status === 'success') {
-          const verification = await paymentService.verifyPayment(payment.reference);
-          if (verification.status === 'success') {
-            clearCart();
-            toast({
-              title: 'Payment successful!',
-              description: 'Your order has been confirmed.',
-              variant: 'default',
-            });
-            navigate(`/order/${order.id}/success?reference=${payment.reference}`);
-          } else {
-            setNetworkError('Payment verification failed. Please try again.');
-            await orderService.updateOrderStatus(order.id, { status: 'failed' });
-          }
+    setCheckoutState(prev => ({ ...prev, currentStep: 'processing-payment' }));    try {
+      // Show processing message first
+      toast({
+        title: 'Processing Payment',
+        description: 'Opening payment popup...',
+        duration: 3000,
+      });      // Initialize payment
+      const payment = await paymentService.initializePayment({
+        amount: Number(total.toFixed(2)),
+        email: shippingInfo.email,
+        orderId: order.id,
+        customerId: user?.id || '',
+        metadata: {
+          orderId: order.id,
+          customerName: shippingInfo.fullName,
+          currency: 'GHS',
+          referrer: window.location.href
         }
-      } else {
-        // Cash on delivery
-        await orderService.updateOrderStatus(order.id, { status: 'pending' });
-        clearCart();
-        navigate(`/order/${order.id}/success`);
-      }
+      });
+
+      // Payment was successful and verified
+      setCheckoutState(prev => ({ ...prev, currentStep: 'completed' }));
+      
+      // Show success message
+      toast({
+        title: 'Payment Successful!',
+        description: 'Your order has been confirmed.',
+        variant: 'default',
+        duration: 3000,
+      });
+
+      // Clear cart and redirect to order confirmation
+      await clearCart();
+      navigate(`/profile?orderId=${order.id}`);
+
+      return payment.reference;
     } catch (error: any) {
-      console.error('Payment error:', error);
-      setNetworkError(error.message || 'Payment failed. Please try again.');
-      if (order.id) {
-        await orderService.updateOrderStatus(order.id, { status: 'failed' });
+      // Reset checkout state
+      setCheckoutState(prev => ({ ...prev, currentStep: 'validating' }));      if (error.message === 'Payment cancelled by user') {
+        toast({
+          title: 'Payment Cancelled',
+          description: 'You cancelled the payment. You can try again when ready.',
+          variant: 'default',
+        });
+      } else {
+        console.error('Payment error:', error);
+        toast({
+          title: 'Payment Failed',
+          description: error.message || 'Failed to process payment. Please try again.',
+          variant: 'destructive',
+        });
       }
+      throw error;
+    }
+  };
+
+  const validateFields = () => {
+    const requiredFields = {
+      fullName: 'Full Name',
+      email: 'Email',
+      phoneNumber: 'Phone Number',
+      address: 'Street Address',
+      city: 'City',
+      state: 'State',
+      country: 'Country'
+    };
+
+    const missingFields = (Object.entries(requiredFields) as Array<[keyof typeof shippingInfo, string]>)
+      .filter(([key]) => !shippingInfo[key])
+      .map(([_, label]) => label);
+
+    if (missingFields.length > 0) {
+      throw new Error(`Please fill in: ${missingFields.join(', ')}`);
+    }
+
+    if (!items.length) {
+      throw new Error('Cart is empty. Please add items before checking out.');
+    }
+
+    if (!total || total <= 0 || isNaN(total)) {
+      throw new Error('Invalid order total');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setNetworkError(null);
+    setCheckoutState(prev => ({ 
+      ...prev, 
+      isProcessing: true, 
+      currentStep: 'validating',
+      error: null 
+    }));
 
-    if (!items.length) {
+    try {
+      // Step 1: Validate all required fields and cart state
+      validateFields();      // Step 2: Create order first
+      setCheckoutState(prev => ({ ...prev, currentStep: 'creating-order' }));
+      const order = await createOrder();      // Step 3: Process payment based on method
+      if (paymentMethod === 'card') {
+        await processPayment(order);
+        // All success handling is done in processPayment
+      } else {
+        // Handle cash payment success
+        setCheckoutState(prev => ({ ...prev, currentStep: 'completed' }));
+        
+        toast({
+          title: 'Order Confirmed!',
+          description: 'Taking you to your order details...',
+          variant: 'default',
+          duration: 3000,
+        });
+        
+        // Clear cart and redirect for cash payments
+        await clearCart();
+        navigate(`/profile?orderId=${order.id}`);
+      }
+      } catch (error: any) {      console.error('Checkout error:', error);
+      
+      // Extract error details
+      const errorDetails = {
+        code: error.response?.status || 'UNKNOWN',
+        details: error.response?.data?.message || error.message,
+        timestamp: new Date().toISOString()
+      };
+
+      setCheckoutState(prev => ({ 
+        ...prev, 
+        error: 'Failed to process checkout. Please try again.',
+        errorDetails
+      }));
+
+      // Show detailed error to user
       toast({
-        title: 'Cart is empty',
-        description: 'Please add items to your cart before checking out.',
         variant: 'destructive',
+        title: 'Checkout Failed',
+        description: `Error: ${errorDetails.details}. Please try again or contact support if the problem persists.`
+      });
+    } finally {
+      setCheckoutState(prev => ({ ...prev, isProcessing: false }));
+      setProcessing(false);
+    }
+  };
+
+  // Helper function to convert Ghana Cedis (GHS) to pesewas (GHp)
+  const convertCedisToMinorUnit = (cedis: number): number => {
+    return Math.round(cedis * 100);
+  };
+
+  const handleCheckout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate required fields
+    const requiredFields = ['fullName', 'email', 'phoneNumber', 'address', 'city', 'state', 'country'];
+    const missingFields = requiredFields.filter(field => !shippingInfo[field as keyof typeof shippingInfo]?.trim());
+    
+    if (missingFields.length > 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Information',
+        description: `Please fill in: ${missingFields.join(', ')}`
       });
       return;
     }
 
+    setCheckoutState({
+      isProcessing: true,
+      currentStep: 'creating-order',
+      error: null
+    });
+
     try {
-      // Validate required fields
-      const requiredFields = {
-        fullName: 'Full Name',
-        email: 'Email',
-        phoneNumber: 'Phone Number',
-        address: 'Street Address',
-        city: 'City',
-        state: 'State',
-        country: 'Country'
-      };      const missingFields = (Object.entries(requiredFields) as Array<[keyof typeof shippingInfo, string]>)
-        .filter(([key]) => !shippingInfo[key])
-        .map(([_, label]) => label);
+      // Create order first
+      const order = await createOrder();
 
-      if (missingFields.length > 0) {
-        toast({
-          title: 'Missing Information',
-          description: `Please fill in: ${missingFields.join(', ')}`,
-          variant: 'destructive',
+      // For card payments, initialize Paystack
+      if (paymentMethod === 'card') {
+        setCheckoutState({
+          isProcessing: true,
+          currentStep: 'processing-payment',
+          error: null
         });
-        return;
+
+        const paymentInit = await paymentService.initializePayment({
+          amount: convertCedisToMinorUnit(total),
+          email: shippingInfo.email,
+          orderId: order.id,
+          customerId: user?.id || '',
+          metadata: {
+            orderId: order.id,
+            customerName: shippingInfo.fullName,
+            currency: 'GHS',
+            amountInCedis: total.toFixed(2)
+          }
+        });        // Payment is handled by the Paystack popup
+        // The cart will be cleared after successful payment in the callback
+        // No need to redirect as popup handles the flow
+      } else {
+        // For cash payments, just clear cart and redirect
+        await clearCart();
+        navigate(`/orders/${order.id}`);
       }
-
-      setProcessing(true);      const calculatedTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      if (!calculatedTotal || calculatedTotal <= 0) {
-        throw new Error('Invalid order total');
-      }
-
-      const orderInput: CreateOrderInput = {
-        items: items.map(item => ({
-          productId: item.id,
-          quantity: item.quantity,
-          name: item.name,
-          price: item.price,
-          image: item.image
-        })),
-        shippingAddress: {
-          street: shippingInfo.address.trim(),
-          city: shippingInfo.city.trim(),
-          state: shippingInfo.state.trim(),
-          country: shippingInfo.country.trim(),
-          postalCode: shippingInfo.zipCode ? shippingInfo.zipCode.trim() : '',
-          zipCode: shippingInfo.zipCode || ''
-        },
-        total: calculatedTotal
-      };
-
-      const order = await orderService.createOrder(orderInput);
-      
-      if (!order?.id) {
-        throw new Error('Failed to create order: No order ID received');
-      }
-
-      // Process payment
-      await handlePayment(order);
     } catch (error: any) {
-      console.error('Order error:', error);
-      setNetworkError(error.message || 'Failed to process order. Please try again.');
-    } finally {
-      setProcessing(false);
+      console.error('Checkout error:', error);
+      setCheckoutState({
+        isProcessing: false,
+        currentStep: 'validating',
+        error: error.message || 'Failed to process checkout'
+      });
+      toast({
+        variant: 'destructive',
+        title: 'Checkout Failed',
+        description: error.message || 'Failed to process your order. Please try again.'
+      });
     }
   };
 
@@ -210,6 +361,31 @@ export default function Checkout() {
       </Alert>
     );
   }
+
+  // Update loading state display
+  const getProcessingMessage = () => {
+    switch (checkoutState.currentStep) {
+      case 'validating':
+        return 'Validating your information...';
+      case 'processing-payment':
+        return 'Processing payment...';
+      case 'creating-order':
+        return 'Creating your order...';
+      case 'completed':
+        return 'Order completed!';
+      default:
+        return 'Processing...';
+    }
+  };
+
+  /**
+   * Converts Ghana Cedis (GHS) to pesewas (GHp)
+   * @param cedis Amount in Ghana Cedis
+   * @returns Amount in pesewas (100 pesewas = 1 Ghana Cedi)
+   */
+  const convertToMinorUnit = (cedis: number): number => {
+    return Math.round(cedis * 100);
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -364,7 +540,7 @@ export default function Checkout() {
                     >                      {processing ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing...
+                          {getProcessingMessage()}
                         </>
                       ) : !currentZone ? (
                         'Please enter delivery address'
