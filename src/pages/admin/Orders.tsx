@@ -258,23 +258,32 @@ const Orders = () => {
               <p className="text-sm text-gray-500">
                 Items: {order.items.length} | Total: {formatPrice(order.total)}
               </p>              <p className="text-sm text-gray-500">
-                Created: {new Date(order.createdAt).toLocaleString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
+                Created: {order.createdAt instanceof Date 
+                  ? order.createdAt.toLocaleString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })
+                  : new Date(order.createdAt).toLocaleString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })
+                }
               </p>
-              
-              {/* Customer Information */}
-              <div className="mt-4 space-y-2">                <h4 className="text-sm font-medium">Customer Details:</h4>
-                <div className="text-sm text-gray-600">
+                {/* Customer Information */}
+              <div className="mt-4 space-y-2">
+                <h4 className="text-sm font-medium">Customer Details:</h4>                <div className="text-sm text-gray-600">
                   <p>Name: {order.shipping?.name || order.user?.name || 'N/A'}</p>
                   <p>Email: {order.shipping?.email || order.user?.email || 'N/A'}</p>
                   <p>Phone: {order.shipping?.phone || order.shippingAddress?.phone || 'N/A'}</p>
+                  <p className="text-xs text-gray-400">Customer ID: {order.userId || 'N/A'}</p>
                 </div>
-              </div>              {/* Shipping Information */}
+              </div>{/* Shipping Information */}
               <div className="mt-4 space-y-2">
                 <h4 className="text-sm font-medium">Shipping Address:</h4>
                 <div className="text-sm text-gray-600">

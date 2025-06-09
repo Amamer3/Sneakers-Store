@@ -1,17 +1,45 @@
 import apiClient from '@/lib/api-client';
 import { Order, PaginatedResponse, CreateOrderInput, UpdateOrderStatusInput, OrderStatus } from '@/types/order';
 
-const convertOrder = (order: any): Order => ({
-  ...order,
-  createdAt: order.createdAt ? new Date(order.createdAt) : new Date(),
-  updatedAt: order.updatedAt ? new Date(order.updatedAt) : new Date(),
-  total: typeof order.total === 'string' ? parseFloat(order.total) : order.total || 0,
-  items: (order.items || []).map((item: any) => ({
+const convertOrder = (order: any): Order => {
+  // Ensure dates are properly converted
+  const createdAt = order.createdAt ? new Date(order.createdAt) : new Date();
+  const updatedAt = order.updatedAt ? new Date(order.updatedAt) : new Date();
+
+  // Ensure total is a number
+  const total = typeof order.total === 'string' ? parseFloat(order.total) : order.total || 0;
+
+  // Convert items
+  const items = (order.items || []).map((item: any) => ({
     ...item,
     price: typeof item.price === 'string' ? parseFloat(item.price) : item.price || 0,
     quantity: typeof item.quantity === 'string' ? parseInt(item.quantity, 10) : item.quantity || 0
-  }))
-});
+  }));
+
+  // Ensure user and shipping info is properly structured
+  const user = order.user ? {
+    id: order.user.id,
+    email: order.user.email,
+    name: order.user.name
+  } : undefined;
+
+  const shipping = order.shipping ? {
+    name: order.shipping.name,
+    email: order.shipping.email,
+    phone: order.shipping.phone,
+    address: order.shipping.address
+  } : undefined;
+
+  return {
+    ...order,
+    createdAt,
+    updatedAt,
+    total,
+    items,
+    user,
+    shipping
+  };
+};
 
 const convertPaginatedResponse = (
   data: any,
