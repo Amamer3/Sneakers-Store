@@ -69,27 +69,63 @@ export default function Profile() {
   useEffect(() => {
     AOS.init({ duration: 1000 });
   }, []);
+
+  const formatOrderDate = (date: string | Date) => {
+    try {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return 'Invalid Date';
+      return d.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid Date';
+    }
+  };
+
   // Fetch orders and highlight the recent one if specified
   useEffect(() => {
     const fetchOrders = async () => {
-      try {
-        setLoading(true);        const response = await orderService.getMyOrders();
-        const ordersList = response.items || [];
-        setOrders(ordersList);
+      if (!user) {
+        setLoading(false);
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to view your orders.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
-        // If there's a highlighted order, scroll to it and show a toast
+      try {
+        setLoading(true);
+        const response = await orderService.getMyOrders();
+        
+        if (!response || !response.items) {
+          toast({
+            title: 'Error',
+            description: 'Could not retrieve orders. Please try again.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        setOrders(response.items);
+
         if (highlightedOrderId) {
-          const recentOrder = ordersList.find(order => order.id === highlightedOrderId);
+          const recentOrder = response.items.find(order => order.id === highlightedOrderId);
           if (recentOrder) {
             setSelectedOrder(recentOrder);
             setActiveTab('orders');
             toast({
-              title: 'Order Status',
-              description: `Your order #${highlightedOrderId} has been ${recentOrder.status}`,
+              title: 'Order Found',
+              description: `Order #${highlightedOrderId} - Status: ${recentOrder.status}`,
               variant: 'default',
             });
 
-            // Scroll to the orders section
             const ordersSection = document.getElementById('orders-section');
             if (ordersSection) {
               ordersSection.scrollIntoView({ behavior: 'smooth' });
@@ -99,8 +135,8 @@ export default function Profile() {
       } catch (error) {
         console.error('Error fetching orders:', error);
         toast({
-          title: 'Error',
-          description: 'Failed to load your orders. Please try again.',
+          title: 'Error Loading Orders',
+          description: error instanceof Error ? error.message : 'Failed to load your orders. Please try again.',
           variant: 'destructive',
         });
       } finally {
@@ -108,10 +144,8 @@ export default function Profile() {
       }
     };
 
-    if (user?.id) {
-      fetchOrders();
-    }
-  }, [highlightedOrderId, toast, user?.id]);
+    fetchOrders();
+  }, [user, highlightedOrderId, toast]);
 
   const handleSaveProfile = async () => {
     if (!user || !editedName.trim()) return;

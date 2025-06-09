@@ -1,10 +1,26 @@
 import apiClient from '@/lib/api-client';
 import { Order, PaginatedResponse, CreateOrderInput, UpdateOrderStatusInput, OrderStatus } from '@/types/order';
 
-const convertOrder = (order: any): Order => {
-  // Ensure dates are properly converted
-  const createdAt = order.createdAt ? new Date(order.createdAt) : new Date();
-  const updatedAt = order.updatedAt ? new Date(order.updatedAt) : new Date();
+const convertOrder = (order: any): Order => {  // Helper to safely convert dates
+  const toValidDate = (dateValue: any): string => {
+    if (!dateValue) return new Date().toISOString();
+    try {
+      const date = new Date(dateValue);
+      // Check if the date is valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date value:', dateValue);
+        return new Date().toISOString();
+      }
+      return date.toISOString();
+    } catch (error) {
+      console.warn('Error converting date:', error);
+      return new Date().toISOString();
+    }
+  };
+
+  // Ensure dates are properly converted to ISO strings for consistent formatting
+  const createdAt = toValidDate(order.createdAt);
+  const updatedAt = toValidDate(order.updatedAt);
 
   // Ensure total is a number
   const total = typeof order.total === 'string' ? parseFloat(order.total) : order.total || 0;
@@ -15,29 +31,44 @@ const convertOrder = (order: any): Order => {
     price: typeof item.price === 'string' ? parseFloat(item.price) : item.price || 0,
     quantity: typeof item.quantity === 'string' ? parseInt(item.quantity, 10) : item.quantity || 0
   }));
+  // Get user info from all possible sources
+  const userInfo = {
+    id: order.userId || order.user?.id || order.userInfo?.id || order.customerId,
+    email: order.user?.email || order.userInfo?.email || order.shipping?.email || order.customer?.email || order.email,
+    name: order.user?.name || order.userInfo?.name || order.shipping?.name || order.customer?.name || order.customerName,
+    phone: order.shipping?.phone || order.user?.phone || order.userInfo?.phone || order.customer?.phone || order.phone
+  };
 
-  // Ensure user and shipping info is properly structured
-  const user = order.user ? {
-    id: order.user.id,
-    email: order.user.email,
-    name: order.user.name
-  } : undefined;
+  // Extract shipping info with customer details fallback
+  const shipping = {
+    name: order.shipping?.name || userInfo.name || '',
+    email: order.shipping?.email || userInfo.email || '',
+    phone: order.shipping?.phone || userInfo.phone || '',
+    address: order.shipping?.address || order.shippingAddress || {}
+  };
 
-  const shipping = order.shipping ? {
-    name: order.shipping.name,
-    email: order.shipping.email,
-    phone: order.shipping.phone,
-    address: order.shipping.address
-  } : undefined;
-
+  // Create user object with all available info
+  const user = {
+    id: userInfo.id,
+    email: userInfo.email || 'No email provided',
+    name: userInfo.name || 'Customer',
+    phone: userInfo.phone || 'No phone number'
+  };
+  // Ensure all required fields are present
   return {
-    ...order,
+    id: order.id,
+    userId: userInfo.id,
+    items,
+    status: order.status || 'pending',
+    total,
+    tax: order.tax || 0,
+    deliveryFee: order.deliveryFee || 0,
+    shipping,
+    shippingAddress: order.shippingAddress || shipping.address,
+    user,
     createdAt,
     updatedAt,
-    total,
-    items,
-    user,
-    shipping
+    paymentReference: order.paymentReference
   };
 };
 
@@ -122,18 +153,44 @@ export const orderService: OrderServiceInterface = {
       throw new Error('Failed to create order: ' + error.message);
     }
   },
-
   // GET /api/orders/my - Get authenticated user's orders
   async getMyOrders(): Promise<PaginatedResponse<Order>> {
     try {
       const response = await apiClient.get<any>('/api/orders/my');
+      
+      // Validate response data
       if (!response.data) {
-        throw new Error('Invalid response format from server');
+        throw new Error('No data received from server');
       }
-      return convertPaginatedResponse(response.data, 1, 10);
+
+      // Ensure items array exists
+      const items = Array.isArray(response.data.items) ? response.data.items : [];
+      const safeResponse = {
+        ...response.data,
+        items,
+        totalItems: response.data.totalItems || items.length,
+        currentPage: response.data.currentPage || 1,
+        totalPages: response.data.totalPages || 1
+      };
+
+      return convertPaginatedResponse(safeResponse, 1, 10);
     } catch (error: any) {
       console.error('Error fetching user orders:', error);
-      throw new Error(error.response?.data?.message || 'Failed to fetch user orders');
+      
+      // Provide more specific error messages
+      if (error instanceof RangeError) {
+        throw new Error('Invalid date found in order data. Please contact support.');
+      }
+      
+      if (error.response?.status === 401) {
+        throw new Error('Please log in to view your orders');
+      }
+      
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+      
+      throw new Error('Could not load orders. Please try again.');
     }
   },
 

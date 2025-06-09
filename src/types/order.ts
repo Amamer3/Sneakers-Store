@@ -26,6 +26,7 @@ export interface ShippingInfo {
 }
 
 export interface UserInfo {
+  phone: string;
   id: string;
   email: string;
   name: string;

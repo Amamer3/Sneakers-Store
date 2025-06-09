@@ -104,14 +104,40 @@ const Orders = () => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   
   const formatOrderDate = (date: string | Date) => {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return 'Invalid Date';
+      return d.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid Date';
+    }
+  };
+
+  const getDisplayName = (order: Order) => {
+    // Try different sources for the customer name
+    return order.user?.name || 
+           order.shipping?.name || 
+           order.user?.email?.split('@')[0] || 
+           'Anonymous Customer';
+  };
+
+  const getDisplayEmail = (order: Order) => {
+    return order.user?.email || 
+           order.shipping?.email || 
+           'No email provided';
+  };
+
+  const getDisplayPhone = (order: Order) => {
+    return order.user?.phone || 
+           order.shipping?.phone || 
+           'No phone provided';
   };
 
   const loadOrders = async (page: number = state.page, isPageChange: boolean = false) => {
@@ -257,33 +283,22 @@ const Orders = () => {
             <div className="space-y-2">
               <p className="text-sm text-gray-500">
                 Items: {order.items.length} | Total: {formatPrice(order.total)}
-              </p>              <p className="text-sm text-gray-500">
-                Created: {order.createdAt instanceof Date 
-                  ? order.createdAt.toLocaleString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })
-                  : new Date(order.createdAt).toLocaleString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })
-                }
               </p>
-                {/* Customer Information */}
-              <div className="mt-4 space-y-2">
-                <h4 className="text-sm font-medium">Customer Details:</h4>                <div className="text-sm text-gray-600">
-                  <p>Name: {order.shipping?.name || order.user?.name || 'N/A'}</p>
-                  <p>Email: {order.shipping?.email || order.user?.email || 'N/A'}</p>
-                  <p>Phone: {order.shipping?.phone || order.shippingAddress?.phone || 'N/A'}</p>
-                  <p className="text-xs text-gray-400">Customer ID: {order.userId || 'N/A'}</p>
+              <p className="text-sm text-gray-500">
+                Created: {formatOrderDate(order.createdAt)}
+              </p>
+
+              <div className="mt-4">
+                <h4 className="text-sm font-medium">Customer Details:</h4>
+                <div className="text-sm text-gray-600">
+                  <p>Name: {getDisplayName(order)}</p>
+                  <p>Email: {getDisplayEmail(order)}</p>
+                  <p>Phone: {getDisplayPhone(order)}</p>
+                  {order.user?.id && <p>Customer ID: {order.user.id}</p>}
                 </div>
-              </div>{/* Shipping Information */}
+              </div>
+
+              {/* Shipping Information */}
               <div className="mt-4 space-y-2">
                 <h4 className="text-sm font-medium">Shipping Address:</h4>
                 <div className="text-sm text-gray-600">
