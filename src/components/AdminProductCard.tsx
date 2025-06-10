@@ -33,14 +33,14 @@ interface Product {
   category: string;
 }
 
-interface AdminProductCardProps {
+interface AdminProductCardProps {  
   product: Product;
   formatPrice: (amount: number) => string;
-  isDeleting?: string;
-  handleEdit?: (product: Product) => Promise<void>;
-  handleDeleteProduct?: (productId: string) => Promise<void>;
-  handleToggleFeatured?: (productId: string, featured: boolean) => Promise<void>;
-  handleToggleStock?: (productId: string, inStock: boolean) => Promise<void>;
+  isDeleting: boolean;  // Changed from isDeleting?: boolean to isDeleting: boolean
+  handleEdit: (product: Product) => Promise<void>;
+  handleDeleteProduct: (productId: string) => Promise<void>;
+  handleToggleFeatured: (productId: string, featured: boolean) => Promise<void>;
+  handleToggleStock: (productId: string, inStock: boolean) => Promise<void>;
   className?: string;
 }
 
@@ -147,7 +147,7 @@ const AdminProductCard: React.FC<AdminProductCardProps> = ({
                   variant="outline"
                   size="sm"
                   className="flex gap-1.5 items-center text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 transition-colors rounded-lg text-xs font-medium"
-                  disabled={isDeleting === product.id}
+                  disabled={isDeleting}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Delete

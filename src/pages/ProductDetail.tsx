@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
-import { Heart, ShoppingCart, ArrowLeft, Loader2 } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet';
+import { Heart, ShoppingCart, ArrowLeft, Loader2, CreditCard } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Link } from 'react-router-dom';
 import { productService } from '@/services/product-service';
 
 interface Product {
@@ -25,13 +25,16 @@ interface Product {
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedImage, setSelectedImage] = useState(0);
   const [addingToCart, setAddingToCart] = useState(false);
-  
+  const [togglingWishlist, setTogglingWishlist] = useState(false);
+  const [buyingNow, setBuyingNow] = useState(false);
+
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { formatPrice } = useCurrency();
@@ -42,56 +45,88 @@ const ProductDetail = () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await productService.getProduct(id as string);
+        const data = await productService.getProduct(id!);
         setProduct(data);
-        // Set first available size as default if sizes exist
         if (data.sizes && data.sizes.length > 0) {
           setSelectedSize(data.sizes[0]);
+        }
+        if (data.images && data.images.length > 0) {
+          setSelectedImage(0);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load product');
         toast({
           title: "Error",
           description: "Failed to load product details",
-          variant: "destructive"
+          variant: "destructive",
         });
       } finally {
         setLoading(false);
       }
     };
 
-    if (id) {
-      fetchProduct();
+    if (!id) {
+      setError('Invalid product ID');
+      setLoading(false);
+      return;
     }
+    fetchProduct();
   }, [id, toast]);
 
   const handleAddToCart = async () => {
     if (!product) return;
-    
+
     if (!selectedSize && product.sizes && product.sizes.length > 0) {
       toast({
         title: "Please select a size",
         description: "You must select a size before adding to cart.",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
     try {
-      setAddingToCart(true);      await addToCart(product.id, 1, selectedSize);
-
+      setAddingToCart(true);
+      await addToCart(product.id, 1, selectedSize);
       toast({
         title: "Added to cart",
-        description: `${product.name}${selectedSize ? ` (Size ${selectedSize})` : ''} has been added to your cart.`
+        description: `${product.name}${selectedSize ? ` (Size ${selectedSize})` : ''} has been added to your cart.`,
       });
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to add item to cart. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setAddingToCart(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!product) return;
+
+    if (!selectedSize && product.sizes && product.sizes.length > 0) {
+      toast({
+        title: "Please select a size",
+        description: "You must select a size to proceed to checkout.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setBuyingNow(true);
+      await addToCart(product.id, 1, selectedSize);
+      navigate('/checkout');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to proceed to checkout. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setBuyingNow(false);
     }
   };
 
@@ -99,31 +134,34 @@ const ProductDetail = () => {
     if (!product) return;
 
     try {
+      setTogglingWishlist(true);
       if (isInWishlist(product.id)) {
         await removeFromWishlist(product.id);
         toast({
           title: "Removed from wishlist",
-          description: `${product.name} has been removed from your wishlist.`
+          description: `${product.name} has been removed from your wishlist.`,
         });
-      } else {        await addToWishlist(product.id);
+      } else {
+        await addToWishlist(product.id);
         toast({
           title: "Added to wishlist",
-          description: `${product.name} has been added to your wishlist.`
+          description: `${product.name} has been added to your wishlist.`,
         });
       }
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to update wishlist. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
+    } finally {
+      setTogglingWishlist(false);
     }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             <div className="space-y-4">
@@ -150,13 +188,27 @@ const ProductDetail = () => {
   }
 
   if (error || !product) {
-    return <Navigate to="/404" replace />;
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-red-600 text-lg">Product not found.</p>
+          <Button asChild>
+            <Link to="/">Return to Home</Link>
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      
-      
+      <Helmet>
+        <title>{product.name} | Your Store</title>
+        <meta
+          name="description"
+          content={product.description || `${product.name} by ${product.brand}`}
+        />
+      </Helmet>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Button variant="ghost" asChild className="mb-6">
           <Link to="/">
@@ -168,31 +220,41 @@ const ProductDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Product Images */}
           <div className="space-y-4">
-            <div className="aspect-square bg-white rounded-lg overflow-hidden">
-              <img
-                src={product.images[selectedImage].url}
-                alt={product.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            
-            <div className="grid grid-cols-4 gap-4">
-              {product.images.map((image, index) => (
-                <button
-                  key={image.id}
-                  onClick={() => setSelectedImage(index)}
-                  className={`aspect-square rounded-md overflow-hidden border-2 transition-all ${
-                    selectedImage === index ? 'border-primary' : 'border-transparent'
-                  }`}
-                >
+            {product.images?.length > 0 ? (
+              <>
+                <div className="aspect-square bg-white rounded-lg overflow-hidden">
                   <img
-                    src={image.url}
-                    alt={`${product.name} view ${index + 1}`}
+                    src={product.images[selectedImage]?.url || '/placeholder-image.jpg'}
+                    alt={product.name}
                     className="w-full h-full object-cover"
+                    onError={(e) => (e.currentTarget.src = '/placeholder-image.jpg')}
                   />
-                </button>
-              ))}
-            </div>
+                </div>
+                <div className="grid grid-cols-4 gap-4">
+                  {product.images.map((image, index) => (
+                    <button
+                      key={image.id}
+                      onClick={() => setSelectedImage(index)}
+                      className={`aspect-square rounded-md overflow-hidden border-2 transition-all ${
+                        selectedImage === index ? 'border-primary' : 'border-transparent'
+                      }`}
+                      aria-label={`View image ${index + 1}`}
+                    >
+                      <img
+                        src={image.url || '/placeholder-image.jpg'}
+                        alt={`${product.name} view ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => (e.currentTarget.src = '/placeholder-image.jpg')}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
+                <p className="text-gray-500">No images available</p>
+              </div>
+            )}
           </div>
 
           {/* Product Info */}
@@ -209,7 +271,7 @@ const ProductDetail = () => {
               <p className="text-gray-600">{product.description}</p>
             )}
 
-            {product.sizes && product.sizes.length > 0 && (
+            {product.sizes?.length > 0 && (
               <div className="space-y-4">
                 <label className="block text-sm font-medium text-gray-700">
                   Select Size
@@ -218,7 +280,7 @@ const ProductDetail = () => {
                   {product.sizes.map((size) => (
                     <Button
                       key={size}
-                      variant={selectedSize === size ? "default" : "outline"}
+                      variant={selectedSize === size ? 'default' : 'outline'}
                       onClick={() => setSelectedSize(size)}
                       className="w-full"
                     >
@@ -234,7 +296,7 @@ const ProductDetail = () => {
                 className="flex-1"
                 size="lg"
                 onClick={handleAddToCart}
-                disabled={!product.inStock || addingToCart}
+                disabled={!product.inStock || addingToCart || buyingNow}
               >
                 {addingToCart ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -243,16 +305,34 @@ const ProductDetail = () => {
                 )}
                 {product.inStock ? 'Add to Cart' : 'Out of Stock'}
               </Button>
-              
+              <Button
+                className="flex-1"
+                size="lg"
+                onClick={handleBuyNow}
+                disabled={!product.inStock || buyingNow || addingToCart}
+                variant="secondary"
+              >
+                {buyingNow ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <CreditCard className="h-4 w-4 mr-2" />
+                )}
+                {product.inStock ? 'Buy Now' : 'Out of Stock'}
+              </Button>
               <Button
                 variant="outline"
                 size="lg"
                 onClick={handleWishlistToggle}
+                disabled={togglingWishlist}
                 className={isInWishlist(product.id) ? 'bg-pink-50 text-pink-600 hover:bg-pink-100' : ''}
               >
-                <Heart
-                  className={`h-4 w-4 ${isInWishlist(product.id) ? 'fill-current' : ''}`}
-                />
+                {togglingWishlist ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Heart
+                    className={`h-4 w-4 ${isInWishlist(product.id) ? 'fill-current' : ''}`}
+                  />
+                )}
               </Button>
             </div>
 
@@ -275,4 +355,4 @@ const ProductDetail = () => {
   );
 };
 
-export default ProductDetail;
+export default React.memo(ProductDetail);

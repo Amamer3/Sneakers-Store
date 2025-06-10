@@ -9,202 +9,233 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import AdminProductCard from '@/components/AdminProductCard';
+import ProductForm from '@/components/admin/ProductForm';
+import { Product, ProductFilters } from '@/types/product';
 
-interface ProductFilters {
-  page?: number;
-  limit?: number;
-  sort?: string;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  brand: string;
-  price: number;
-  description?: string;
-  images: { id: string; url: string }[];
-  sizes?: string[];
-  category: string;
-  inStock: boolean;
-  featured: boolean;
-}
-
+// Define ProductFormData interface for form submission
 interface ProductFormData {
   name: string;
   brand: string;
   price: number;
-  description: string;
+  description?: string;
   category: string;
   inStock: boolean;
   featured: boolean;
-  images?: { id: string; url: string }[];
-  sizes?: string[];
+  sizes: string[];
+  images?: File[];
+  existingImages?: { id: string; url: string }[];
 }
 
-interface ProductCreateInput {
-  name: string;
-  brand: string;
-  price: number;
-  description: string;
-  category: string;
-  inStock: boolean;
-  featured: boolean;
-  images?: { id: string; url: string }[];
-  sizes?: string[];
-}
-
-const Products = () => {
+export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const { isAuthenticated, isAdmin } = useAuth();
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+  
   const { formatPrice } = useCurrency();
+  const { isAdmin } = useAuth();
   const { toast } = useToast();
 
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (filters: Partial<ProductFilters> = {}) => {
+    if (!isAdmin) return;
+
     try {
       setLoading(true);
-      const data = await adminProductService.getProducts({ 
-        page: 1, 
-        limit: 100, 
-        sort: 'createdAt:desc' 
+      setError(null);
+      const response = await adminProductService.getProducts({
+        page: 1,
+        limit: 10,
+        sort: 'createdAt:desc',
+        ...filters
       });
-      setProducts(data.items);
+      setProducts(response.items || []);
     } catch (error) {
+      console.error('Error fetching products:', error);
+      setError('Failed to load products');
       toast({
         title: 'Error',
-        description: 'Failed to load products',
+        description: 'Could not load products. Please try again.',
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [isAdmin, toast]);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
-  const handleEdit = useCallback(async (product: Product) => {
+  const handleCreateProduct = () => {
+    setEditingProduct(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleEditProduct = async (product: Product) => {
     setEditingProduct(product);
     setIsDialogOpen(true);
-  }, []);
+  };
 
-  const handleDeleteProduct = useCallback(async (productId: string) => {
+  const handleSubmit = async (data: ProductFormData & { existingImages?: { id: string; url: string }[] }) => {
     try {
-      setIsDeleting(productId);
+      if (editingProduct) {
+        // First, update the product details
+        await adminProductService.updateProduct(editingProduct.id, {
+          name: data.name,
+          brand: data.brand,
+          price: data.price,
+          description: data.description,
+          category: data.category,
+          sizes: data.sizes,
+          inStock: data.inStock,
+          featured: data.featured,
+        });
+
+        // Then, if there are new images, upload them
+        if (data.images && data.images.length > 0) {
+          await adminProductService.uploadImages(editingProduct.id, data.images);
+        }
+
+        toast({
+          title: 'Success',
+          description: 'Product updated successfully',
+        });
+      } else {
+        // Create the product first
+        const newProduct = await adminProductService.createProduct({
+          name: data.name,
+          brand: data.brand,
+          price: data.price,
+          description: data.description,
+          category: data.category,
+          sizes: data.sizes,
+          inStock: data.inStock,
+          featured: data.featured,
+        });
+
+        // Then upload the images if they exist
+        if (data.images && data.images.length > 0) {
+          await adminProductService.uploadImages(newProduct.id, data.images);
+        }
+
+        toast({
+          title: 'Success',
+          description: 'Product created successfully',
+        });
+      }
+      setIsDialogOpen(false);
+      setEditingProduct(null);
+      fetchProducts();
+    } catch (error) {
+      console.error('Error saving product:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to save product. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      setDeletingProductId(productId);
       await adminProductService.deleteProduct(productId);
-      setProducts(prev => prev.filter(p => p.id !== productId));
       toast({
         title: 'Success',
         description: 'Product deleted successfully',
       });
+      fetchProducts();
     } catch (error) {
+      console.error('Error deleting product:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete product',
         variant: 'destructive',
       });
     } finally {
-      setIsDeleting(null);
+      setDeletingProductId(null);
     }
-  }, [toast]);
+  };
 
-  const handleToggleFeatured = useCallback(async (productId: string, featured: boolean) => {
+  const handleToggleFeatured = async (productId: string, featured: boolean) => {
     try {
       await adminProductService.updateProduct(productId, { featured });
-      setProducts(prev =>
-        prev.map(p =>
-          p.id === productId ? { ...p, featured } : p
-        )
+      setProducts(prev => 
+        prev.map(p => p.id === productId ? { ...p, featured } : p)
       );
       toast({
-        description: `Product ${featured ? 'marked as featured' : 'removed from featured'}`,
+        description: `Product ${featured ? 'added to' : 'removed from'} featured items`,
       });
     } catch (error) {
+      console.error('Error updating product:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update product',
+        description: 'Failed to update product status',
         variant: 'destructive',
       });
     }
-  }, [toast]);
+  };
 
-  const handleToggleStock = useCallback(async (productId: string, inStock: boolean) => {
+  const handleToggleStock = async (productId: string, inStock: boolean) => {
     try {
       await adminProductService.updateProduct(productId, { inStock });
-      setProducts(prev =>
-        prev.map(p =>
-          p.id === productId ? { ...p, inStock } : p
-        )
+      setProducts(prev => 
+        prev.map(p => p.id === productId ? { ...p, inStock } : p)
       );
       toast({
-        description: `Product ${inStock ? 'marked as in stock' : 'marked as out of stock'}`,
+        description: `Product marked as ${inStock ? 'in stock' : 'out of stock'}`,
       });
     } catch (error) {
+      console.error('Error updating product:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update product',
+        description: 'Failed to update stock status',
         variant: 'destructive',
       });
     }
-  }, [toast]);
+  };
 
-  const handleSubmit = useCallback(async (productData: ProductFormData) => {
-    try {
-      if (editingProduct) {
-        const updatedProduct = await adminProductService.updateProduct(editingProduct.id, productData as ProductCreateInput);
-        setProducts(prev =>
-          prev.map(p =>
-            p.id === editingProduct.id ? { ...p, ...updatedProduct } : p
-          )
-        );
-        toast({
-          description: 'Product updated successfully',
-        });
-      } else {
-        const newProduct = await adminProductService.createProduct(productData as ProductCreateInput);
-        setProducts(prev => [newProduct, ...prev]);
-        toast({
-          description: 'Product created successfully',
-        });
-      }
-      setIsDialogOpen(false);
-      setEditingProduct(null);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to save product',
-        variant: 'destructive',
-      });
-    }
-  }, [editingProduct, toast]);
-
-  if (!isAuthenticated || !isAdmin) {
-    return null;
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[80vh]">
+        <AlertTriangle className="w-16 h-16 text-yellow-500 mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+        <p className="text-gray-600">You must be an admin to view this page.</p>
+      </div>
+    );
   }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Products</h1>
-        <Button onClick={() => setIsDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
+        <h1 className="text-2xl font-bold">Products Management</h1>
+        <Button onClick={handleCreateProduct}>
+          <Plus className="w-4 h-4 mr-2" />
           Add Product
         </Button>
       </div>
 
-      {loading ? (
+      {/* Content */}
+      {error ? (
+        <Card className="p-6 text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-red-500" />
+          <p className="mt-2 text-lg font-medium">Error Loading Products</p>
+          <p className="text-muted-foreground">{error}</p>
+          <Button onClick={() => fetchProducts()} className="mt-4">
+            Try Again
+          </Button>
+        </Card>
+      ) : loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
-            <Card key={i} className="p-4 h-[400px]">
+            <Card key={i} className="p-4">
               <Skeleton className="h-[200px] w-full rounded-lg" />
               <div className="space-y-2 mt-4">
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-4 w-1/4" />
               </div>
             </Card>
           ))}
@@ -212,7 +243,7 @@ const Products = () => {
       ) : products.length === 0 ? (
         <Card className="p-6 text-center">
           <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500" />
-          <p className="mt-2 text-lg font-medium">No products found</p>
+          <p className="mt-2 text-lg font-medium">No Products Found</p>
           <p className="text-muted-foreground">Add your first product to get started</p>
         </Card>
       ) : (
@@ -222,9 +253,9 @@ const Products = () => {
               key={product.id}
               product={product}
               formatPrice={formatPrice}
-              isDeleting={isDeleting}
-              handleEdit={handleEdit}
-              handleDeleteProduct={handleDeleteProduct}
+              isDeleting={deletingProductId === product.id}
+              handleEdit={() => handleEditProduct(product)}
+              handleDeleteProduct={() => handleDeleteProduct(product.id)}
               handleToggleFeatured={handleToggleFeatured}
               handleToggleStock={handleToggleStock}
             />
@@ -232,19 +263,24 @@ const Products = () => {
         </div>
       )}
 
+      {/* Create/Edit Product Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>{editingProduct ? 'Edit Product' : 'Add Product'}</DialogTitle>
+            <DialogTitle>
+              {editingProduct ? 'Edit Product' : 'Create New Product'}
+            </DialogTitle>
           </DialogHeader>
-          <div>
-            {/* We'll need to implement or import the ProductForm component */}
-            Form will be rendered here
-          </div>
+          <ProductForm
+            initialData={editingProduct || undefined}
+            onSubmit={handleSubmit}
+            onCancel={() => {
+              setIsDialogOpen(false);
+              setEditingProduct(null);
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>
   );
-};
-
-export default Products;
+}
