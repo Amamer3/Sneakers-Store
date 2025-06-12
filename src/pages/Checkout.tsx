@@ -45,7 +45,12 @@ export default function Checkout() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const buyNowItem = window.sessionStorage.getItem('buyNowItem') 
+    ? JSON.parse(window.sessionStorage.getItem('buyNowItem')!) 
+    : null;
+
+  const allItems = buyNowItem ? [...items, buyNowItem] : items;
+  const subtotal = allItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const deliveryFee = currentZone?.price || 0;
   const tax = subtotal * 0.08;
   const total = subtotal + tax + deliveryFee;
@@ -73,8 +78,9 @@ export default function Checkout() {
   const handleShippingChange = (field: string, value: string) => {
     setShippingInfo(prev => ({ ...prev, [field]: value }));
   };
+
   const createOrder = async () => {
-    const calculatedTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0) + tax + deliveryFee;
+    const calculatedTotal = allItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) + tax + deliveryFee;
     if (!calculatedTotal || calculatedTotal <= 0) {
       throw new Error('Invalid order total');
     }
@@ -84,13 +90,14 @@ export default function Checkout() {
     }
 
     const orderInput: CreateOrderInput = {
-      items: items.map(item => ({
+      items: allItems.map(item => ({
         productId: item.id,
         quantity: item.quantity,
         name: item.name,
         price: item.price,
         image: item.image
-      })),      shippingAddress: {
+      })),
+      shippingAddress: {
         street: shippingInfo.address.trim(),
         city: shippingInfo.city.trim(),
         state: shippingInfo.state.trim(),
@@ -157,6 +164,8 @@ export default function Checkout() {
 
       // Clear cart and redirect to order confirmation
       await clearCart();
+      // Clear buyNowItem from sessionStorage if it exists
+      window.sessionStorage.removeItem('buyNowItem');
       navigate(`/profile?orderId=${order.id}`);
 
       return payment.reference;
@@ -199,7 +208,7 @@ export default function Checkout() {
       throw new Error(`Please fill in: ${missingFields.join(', ')}`);
     }
 
-    if (!items.length) {
+    if (!items.length && !window.sessionStorage.getItem('buyNowItem')) {
       throw new Error('Cart is empty. Please add items before checking out.');
     }
 

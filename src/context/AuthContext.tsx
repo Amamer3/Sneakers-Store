@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { useToast } from '@/components/ui/use-toast';
+import { cartService } from '@/services/cart-service';
 import axios from 'axios';
 
 interface User {
@@ -68,6 +69,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: response.user.role === 'admin' ? 'admin' : 'customer'
       };
       setUser(validatedUser);
+
+      // Merge localStorage cart with server cart
+      const localCart = localStorage.getItem('cart');
+      if (localCart) {
+        const cartItems = JSON.parse(localCart);
+        // Add each item to server cart
+        for (const item of cartItems) {
+          try {
+            await cartService.addToCart(item.productId, item.quantity, item.size);
+          } catch (error) {
+            console.error('Error merging cart item:', error);
+          }
+        }
+        // Clear localStorage cart after merging
+        localStorage.removeItem('cart');
+      }
+
       toast({
         title: "Success",
         description: "Logged in successfully",

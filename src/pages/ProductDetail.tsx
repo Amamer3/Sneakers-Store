@@ -117,7 +117,15 @@ const ProductDetail = () => {
 
     try {
       setBuyingNow(true);
-      await addToCart(product.id, 1, selectedSize);
+      const buyNowItem = {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: 1,
+        size: selectedSize,
+        image: product.images[0]?.url
+      };
+      window.sessionStorage.setItem('buyNowItem', JSON.stringify(buyNowItem));
       navigate('/checkout');
     } catch (error) {
       toast({

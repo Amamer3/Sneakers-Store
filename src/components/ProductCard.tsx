@@ -83,6 +83,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
   className = '',
 }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [selectedSize, setSelectedSize] = useState<string>('');
+  const [showSizeSelector, setShowSizeSelector] = useState(false);
+  const [addingToCart, setAddingToCart] = useState(false);
+  
   const { addToCart, items } = useCart();
   const isInCart = (productId: string) => items.some(item => item.productId === productId);
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
@@ -92,6 +96,31 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     e.currentTarget.src = FALLBACK_IMAGE;
+  };
+
+  const handleAddToCart = async () => {
+    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+      setShowSizeSelector(true);
+      return;
+    }
+
+    try {
+      setAddingToCart(true);
+      await addToCart(product.id, 1, selectedSize);
+      setShowSizeSelector(false);
+      setSelectedSize('');
+      toast({
+        description: `${product.name}${selectedSize ? ` (Size ${selectedSize})` : ''} added to cart`
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to add item to cart',
+        variant: 'destructive',
+      });
+    } finally {
+      setAddingToCart(false);
+    }
   };
 
   const toggleWishlist = useCallback(async () => {
@@ -116,6 +145,30 @@ const ProductCard: React.FC<ProductCardProps> = ({
     }
   }, [product, isAuthenticated, navigate, addToWishlist, removeFromWishlist, isInWishlist, toast]);
 
+  // Size selector component
+  const SizeSelector = () => (
+    <div className={cn(
+      'absolute bottom-16 left-0 right-0 bg-white p-3 rounded-lg shadow-lg transition-all duration-300',
+      showSizeSelector ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+    )}>
+      <div className="text-sm font-medium mb-2">Select Size:</div>
+      <div className="grid grid-cols-4 gap-1">
+        {product.sizes?.map((size) => (
+          <Button
+            key={size}
+            variant={selectedSize === size ? 'default' : 'outline'}
+            className="text-xs py-1"
+            onClick={() => {
+              setSelectedSize(size);
+              handleAddToCart();
+            }}
+          >
+            {size}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
   return (
     <div
       className={cn(
@@ -182,19 +235,26 @@ const ProductCard: React.FC<ProductCardProps> = ({
               size="icon"
               variant="secondary"
               className="h-10 w-10 rounded-full bg-white/95 shadow-md hover:bg-white hover:shadow-lg transition-all duration-200"
-              onClick={() => addToCart(product.id, 1, null)}
-              disabled={isInCart(product.id)}
+              onClick={handleAddToCart}
+              disabled={isInCart(product.id) || addingToCart}
               aria-label={isInCart(product.id) ? 'Already in cart' : 'Add to cart'}
             >
-              <ShoppingCart
-                className={cn(
-                  'h-5 w-5 transition-colors duration-200',
-                  isInCart(product.id) ? 'text-gray-400' : 'text-gray-600'
-                )}
-              />
+              {addingToCart ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <ShoppingCart
+                  className={cn(
+                    'h-5 w-5 transition-colors duration-200',
+                    isInCart(product.id) ? 'text-gray-400' : 'text-gray-600'
+                  )}
+                />
+              )}
             </Button>
           )}
         </div>
+
+        {/* Size Selector */}
+        <SizeSelector />
       </div>
 
       {/* Content */}

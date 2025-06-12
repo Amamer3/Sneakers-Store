@@ -58,16 +58,21 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const loadCart = async () => {
-    if (!isAuthenticated) {
-      setItems([]);
-      return;
-    }
-
     try {
       setIsLoading(true);
-      const response = await cartService.getCart();
-      const cartItems = await transformCartItems(response.items);
-      setItems(cartItems);
+      if (isAuthenticated) {
+        const response = await cartService.getCart();
+        const cartItems = await transformCartItems(response.items);
+        setItems(cartItems);
+        // Save to localStorage as backup
+        localStorage.setItem('cart', JSON.stringify(cartItems));
+      } else {
+        // Load from localStorage for non-authenticated users
+        const savedCart = localStorage.getItem('cart');
+        if (savedCart) {
+          setItems(JSON.parse(savedCart));
+        }
+      }
     } catch (error) {
       console.error('Error loading cart:', error);
       toast({
@@ -90,9 +95,24 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const addToCart = async (productId: string, quantity: number, size: string | null) => {
     try {
       setIsLoading(true);
-      await cartService.addToCart(productId, quantity, size);
-      // Reload cart to get updated items
-      await loadCart();
+      if (isAuthenticated) {
+        await cartService.addToCart(productId, quantity, size);
+        await loadCart();
+      } else {
+        const product = await productService.getProduct(productId);
+        const newItem: CartItem = {
+          id: `${productId}-${size}-${Date.now()}`,
+          productId,
+          quantity,
+          size,
+          price: product.price,
+          name: product.name,
+          image: product.images[0]?.url ?? '/placeholder.svg'
+        };
+        const updatedItems = [...items, newItem];
+        setItems(updatedItems);
+        localStorage.setItem('cart', JSON.stringify(updatedItems));
+      }
       toast({
         title: 'Item Added',
         description: 'Successfully added item to cart',
@@ -118,9 +138,21 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      const cart = await cartService.updateCartItem(productId, { quantity, size });
-      const transformedItems = await transformCartItems(cart.items);
-      setItems(transformedItems);
+      if (isAuthenticated) {
+        const cart = await cartService.updateCartItem(productId, { quantity, size });
+        const transformedItems = await transformCartItems(cart.items);
+        setItems(transformedItems);
+        localStorage.setItem('cart', JSON.stringify(transformedItems));
+      } else {
+        const updatedItems = items.map(item =>
+          item.productId === productId && item.size === size
+            ? { ...item, quantity }
+            : item
+        );
+        setItems(updatedItems);
+        localStorage.setItem('cart', JSON.stringify(updatedItems));
+      }
+      
       toast({
         title: 'Cart updated',
         description: 'Quantity has been updated',
@@ -140,9 +172,18 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const removeFromCart = async (productId: string, size: string | null) => {
     try {
       setIsLoading(true);
-      const cart = await cartService.removeFromCart(productId);
-      const transformedItems = await transformCartItems(cart.items);
-      setItems(transformedItems);
+      if (isAuthenticated) {
+        const cart = await cartService.removeFromCart(productId);
+        const transformedItems = await transformCartItems(cart.items);
+        setItems(transformedItems);
+        localStorage.setItem('cart', JSON.stringify(transformedItems));
+      } else {
+        const updatedItems = items.filter(
+          item => !(item.productId === productId && item.size === size)
+        );
+        setItems(updatedItems);
+        localStorage.setItem('cart', JSON.stringify(updatedItems));
+      }
       toast({
         title: 'Item removed',
         description: 'Item has been removed from your cart',
@@ -161,6 +202,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   const clearCart = () => {
     setItems([]);
+    localStorage.removeItem('cart');
   };
 
   // Calculate totals
