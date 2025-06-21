@@ -15,7 +15,61 @@ export interface OrderItem {
   name: string;
   price: number;
   quantity: number;
+  size?: string;
+  color?: string;
   image: string;
+  sku?: string;
+  weight?: number;
+}
+
+export interface PaymentInfo {
+  method: PaymentMethod;
+  status: PaymentStatus;
+  transactionId?: string;
+  reference?: string;
+  amount: number;
+  currency: string;
+  gateway?: string;
+  gatewayResponse?: any;
+  paidAt?: string | Date;
+  refundedAt?: string | Date;
+  refundAmount?: number;
+  refundReason?: string;
+  fees?: number;
+}
+
+export interface OrderTracking {
+  id: string;
+  orderId: string;
+  status: OrderStatus;
+  eventType: TrackingEventType;
+  message: string;
+  location?: string;
+  timestamp: string | Date;
+  updatedBy?: string;
+  isSystemUpdate: boolean;
+  metadata?: Record<string, any>;
+}
+
+export interface OrderDiscount {
+  id: string;
+  code: string;
+  type: DiscountType;
+  value: number;
+  description: string;
+  appliedAmount: number;
+  maxDiscount?: number;
+  minOrderAmount?: number;
+}
+
+export interface InventoryReservation {
+  id: string;
+  productId: string;
+  quantity: number;
+  size?: string;
+  reservedAt: string | Date;
+  expiresAt: string | Date;
+  status: 'active' | 'expired' | 'released' | 'confirmed';
 }
 
 export interface ShippingInfo {
@@ -23,6 +77,8 @@ export interface ShippingInfo {
   email: string;
   phone: string;
   address: Address;
+  method?: string;
+  cost?: number;
 }
 
 export interface UserInfo {
@@ -32,22 +88,65 @@ export interface UserInfo {
   name: string;
 }
 
-export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'failed';
+export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded' | 'failed';
+export type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'refunded' | 'partially_refunded';
+export type PaymentMethod = 'card' | 'cash' | 'paystack' | 'stripe' | 'paypal';
+export type DiscountType = 'percentage' | 'fixed' | 'shipping';
+export type TrackingEventType = 'created' | 'confirmed' | 'processing' | 'shipped' | 'in_transit' | 'delivered' | 'cancelled' | 'refunded';
 
 export interface Order {
-  shippingAddress: Address;
+  // Core fields
   id: string;
+  orderNumber?: string;
   userId: string;
+  
+  // Order items and pricing
   items: OrderItem[];
-  status: OrderStatus;
-  total: number;
-  shipping: ShippingInfo;
-  user: UserInfo;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-  paymentReference?: string;
+  subtotal: number;
   tax: number;
   deliveryFee: number;
+  total: number;
+  currency: string;
+  
+  // Status and lifecycle
+  status: OrderStatus;
+  
+  // Customer information
+  user: UserInfo;
+  
+  // Shipping information
+  shipping: ShippingInfo;
+  shippingAddress: Address;
+  billingAddress?: Address;
+  
+  // Payment information
+  payment?: PaymentInfo;
+  paymentReference?: string; // Legacy field for backward compatibility
+  
+  // Discounts and coupons
+  discounts?: OrderDiscount[];
+  couponCode?: string;
+  
+  // Tracking and history
+  trackingHistory?: OrderTracking[];
+  trackingNumber?: string;
+  estimatedDelivery?: string | Date;
+  
+  // Inventory management
+  inventoryReservations?: InventoryReservation[];
+  
+  // Timestamps
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  confirmedAt?: string | Date;
+  shippedAt?: string | Date;
+  deliveredAt?: string | Date;
+  
+  // Additional metadata
+  notes?: string;
+  internalNotes?: string;
+  source?: string; // web, mobile, admin
+  metadata?: Record<string, any>;
 }
 
 export interface PaginatedResponse<T> {
@@ -80,4 +179,12 @@ export interface CreateOrderInput {
 
 export interface UpdateOrderStatusInput {
   status: Order['status'];
+}
+
+export interface OrderQueryParams {
+  status?: OrderStatus;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }

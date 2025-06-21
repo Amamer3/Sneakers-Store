@@ -23,7 +23,7 @@ const PromoBanner = () => {
               <Truck className="h-8 w-8" />
             </div>
             <h3 className="text-xl font-semibold mb-2">Free Shipping</h3>
-            <p className="text-blue-100">On orders over $100. Fast and reliable delivery worldwide.</p>
+            <p className="text-blue-100">On orders over ₵1,150. Fast and reliable delivery worldwide.</p>
           </div>
           
           <div className="text-center">

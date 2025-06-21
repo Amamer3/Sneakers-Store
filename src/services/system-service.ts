@@ -1,4 +1,4 @@
-import api from './api';
+import apiClient from '@/lib/api-client';
 import { wsService } from './websocket-service';
 import { SystemHealth, SystemMetrics } from '@/types/system';
 import {
@@ -11,13 +11,23 @@ import {
 
 // Health and basic metrics
 export const getSystemHealth = async (): Promise<SystemHealth> => {
-  const { data } = await api.get('/api/health');
-  return data;
+  try {
+    const response = await apiClient.get('/system/health');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching system health:', error);
+    throw error;
+  }
 };
 
-export const getSystemMetrics = async (): Promise<DetailedSystemMetrics> => {
-  const { data } = await api.get('/metrics');
-  return data;
+export const getSystemMetrics = async (): Promise<SystemMetrics> => {
+  try {
+    const response = await apiClient.get('/system/metrics');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching system metrics:', error);
+    throw error;
+  }
 };
 
 // Historical metrics
@@ -26,7 +36,7 @@ export const getHistoricalMetrics = async (
   endTime: string,
   interval: 'minute' | 'hour' | 'day' = 'hour'
 ): Promise<HistoricalMetrics[]> => {
-  const { data } = await api.get('/metrics/historical', {
+  const { data } = await apiClient.get('/metrics/historical', {
     params: { startTime, endTime, interval }
   });
   return data;
@@ -41,7 +51,7 @@ export const getSystemLogs = async (
   startTime?: string,
   endTime?: string
 ): Promise<{ logs: SystemLog[]; total: number }> => {
-  const { data } = await api.get('/logs', {
+  const { data } = await apiClient.get('/logs', {
     params: { limit, offset, level, source, startTime, endTime }
   });
   return data;
@@ -49,22 +59,66 @@ export const getSystemLogs = async (
 
 // Alert thresholds
 export const getAlertThresholds = async (): Promise<AlertThreshold[]> => {
-  const { data } = await api.get('/alerts/thresholds');
+  const { data } = await apiClient.get('/system/alerts/thresholds');
   return data;
 };
 
+export const updateAlertThresholds = async (thresholds: AlertThreshold[]): Promise<AlertThreshold[]> => {
+  const { data } = await apiClient.post('/system/alerts/thresholds', { thresholds });
+  return data;
+};
+
+// System logs for system management
+export const getSystemManagementLogs = async (
+  limit: number = 100,
+  offset: number = 0,
+  level?: SystemLog['level'],
+  source?: string,
+  startTime?: string,
+  endTime?: string
+): Promise<{ logs: SystemLog[]; total: number }> => {
+  const { data } = await apiClient.get('/system/logs', {
+    params: { limit, offset, level, source, startTime, endTime }
+  });
+  return data;
+};
+
+// System historical metrics
+export const getSystemHistoricalMetrics = async (timeRange: string = '24h'): Promise<any> => {
+  try {
+    const response = await apiClient.get(`/system/metrics/historical?range=${timeRange}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching historical metrics:', error);
+    throw error;
+  }
+};
+
+// Health check endpoint
+export const getHealthCheck = async (): Promise<{ status: string; timestamp: string }> => {
+  const { data } = await apiClient.get('/health');
+  return data;
+};
+
+// Basic API status
+export const getApiStatus = async (): Promise<{ status: string; version: string }> => {
+  const { data } = await apiClient.get('/');
+  return data;
+};
+// Removed duplicate - using the one above with correct endpoint
+
 export const createAlertThreshold = async (threshold: Omit<AlertThreshold, 'id'>): Promise<AlertThreshold> => {
-  const { data } = await api.post('/alerts/thresholds', threshold);
+  const { data } = await apiClient.post('/alerts/thresholds', threshold);
   return data;
 };
 
 export const updateAlertThreshold = async (threshold: AlertThreshold): Promise<AlertThreshold> => {
-  const { data } = await api.put(`/alerts/thresholds/${threshold.id}`, threshold);
+  const { data } = await apiClient.put(`/alerts/thresholds/${threshold.id}`, threshold);
   return data;
 };
 
 export const deleteAlertThreshold = async (id: string): Promise<void> => {
-  await api.delete(`/alerts/thresholds/${id}`);
+  await apiClient.delete(`/alerts/thresholds/${id}`);
 };
 
 // Alerts
@@ -76,14 +130,14 @@ export const getAlerts = async (
   startTime?: string,
   endTime?: string
 ): Promise<{ alerts: Alert[]; total: number }> => {
-  const { data } = await api.get('/alerts', {
+  const { data } = await apiClient.get('/alerts', {
     params: { limit, offset, severity, acknowledged, startTime, endTime }
   });
   return data;
 };
 
 export const acknowledgeAlert = async (id: string): Promise<Alert> => {
-  const { data } = await api.post(`/alerts/${id}/acknowledge`);
+  const { data } = await apiClient.post(`/alerts/${id}/acknowledge`);
   return data;
 };
 

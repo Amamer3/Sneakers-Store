@@ -29,15 +29,6 @@ const Cart = () => {
   }, []);
 
   const handleQuantityUpdate = async (itemId: string, size: string, newQuantity: number) => {
-    if (!isAuthenticated) {
-      toast({
-        title: 'Authentication Required',
-        description: 'Please login to update your cart',
-        action: <Button asChild size="sm" variant="outline"><Link to="/login">Login</Link></Button>,
-      });
-      return;
-    }
-
     try {
       const key = `${itemId}-${size}`;
       setLoadingItems(prev => new Set(prev).add(key));
@@ -58,15 +49,6 @@ const Cart = () => {
   };
 
   const handleRemoveItem = async (itemId: string, size: string) => {
-    if (!isAuthenticated) {
-      toast({
-        title: 'Authentication Required',
-        description: 'Please login to manage your cart',
-        action: <Button asChild size="sm" variant="outline"><Link to="/login">Login</Link></Button>,
-      });
-      return;
-    }
-
     try {
       const key = `${itemId}-${size}`;
       setLoadingItems(prev => new Set(prev).add(key));
@@ -129,7 +111,7 @@ const Cart = () => {
               >
                 <CardContent className="p-6">
                   <div className="flex items-center space-x-6">
-                    <Link to={`/product/${item.id}`} className="group">
+                    <Link to={`/product/${item.productId}`} className="group">
                       <img
                         src={item.image}
                         alt={item.name}

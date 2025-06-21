@@ -8,6 +8,7 @@ import { CartProvider } from "@/context/CartContext";
 import { WishlistProvider } from "@/context/WishlistContext";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { DeliveryProvider } from "@/context/DeliveryContext";
+import { OrderProvider } from "@/context/OrderContext";
 import AdminRoute from "@/components/AdminRoute";
 import AdminLayout from "@/components/AdminLayout";
 import MainLayout from "@/components/MainLayout";
@@ -28,6 +29,10 @@ import Products from "./pages/admin/Products";
 import Orders from "./pages/admin/Orders";
 import Users from "./pages/admin/Users";
 import Analytics from "./pages/admin/Analytics";
+import OrderManagement from "./pages/admin/OrderManagement";
+import InventoryManagement from "./pages/admin/InventoryManagement";
+import CouponManagement from "./pages/admin/CouponManagement";
+import NotificationManagement from "./pages/admin/NotificationManagement";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -62,7 +67,13 @@ const App = () => (
         <CartProvider>
           <WishlistProvider>
             <CurrencyProvider>
-              <BrowserRouter>
+              <OrderProvider>
+                <BrowserRouter
+                  future={{
+                    v7_startTransition: true,
+                    v7_relativeSplatPath: true,
+                  }}
+                >
                 <Toaster />
                 <Sonner />
                 <DeliveryProvider>
@@ -88,6 +99,10 @@ const App = () => (
                         <Route path="/admin/dashboard" element={<Dashboard />} />
                         <Route path="/admin/products" element={<Products />} />
                         <Route path="/admin/orders" element={<Orders />} />
+                        <Route path="/admin/order-management" element={<OrderManagement />} />
+                        <Route path="/admin/inventory" element={<InventoryManagement />} />
+                        <Route path="/admin/coupons" element={<CouponManagement />} />
+                        <Route path="/admin/notifications" element={<NotificationManagement />} />
                         <Route path="/admin/users" element={<Users />} />
                         <Route path="/admin/analytics" element={<Analytics />} />
                       </Route>
@@ -101,7 +116,8 @@ const App = () => (
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </DeliveryProvider>
-              </BrowserRouter>
+                </BrowserRouter>
+              </OrderProvider>
             </CurrencyProvider>
           </WishlistProvider>
         </CartProvider>

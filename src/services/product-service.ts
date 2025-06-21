@@ -2,6 +2,7 @@ import apiClient from '@/lib/api-client';
 import { Product } from '@/types/product';
 
 interface ProductsResponse {
+  products: any[];
   items: Product[];
   total: number;
   page: number;

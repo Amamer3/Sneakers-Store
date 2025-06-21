@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { dashboardService } from '@/services/dashboard-service';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import React from 'react';

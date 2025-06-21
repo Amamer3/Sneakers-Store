@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import {
   Select,
   SelectContent,
@@ -85,10 +85,12 @@ const initialState: OrdersState = {
 
 const OrderStatusBadgeVariant: Record<Order['status'], 'default' | 'secondary' | 'outline' | 'destructive'> = {
   'pending': 'secondary',
+  'confirmed': 'default',
   'processing': 'secondary',
   'shipped': 'default',
   'delivered': 'default',
   'cancelled': 'destructive',
+  'refunded': 'outline',
   'failed': 'destructive'
 } as const;
 

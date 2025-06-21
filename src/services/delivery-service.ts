@@ -40,7 +40,7 @@ export interface DeliveryAddress {
 export const deliveryService = {
   async getDeliveryOptions(): Promise<DeliveryOptions> {
     try {
-      const response = await apiClient.get<DeliveryOptions>('/api/delivery/delivery-options');
+      const response = await apiClient.get<DeliveryOptions>('/delivery/delivery-options');
       return response.data;
     } catch (error: any) {
       console.error('Error fetching delivery options:', error);
@@ -48,17 +48,19 @@ export const deliveryService = {
     }
   },
 
-  async validateAddress(address: DeliveryAddress): Promise<ValidationResult> {
+  async validateDeliveryAddress(address: DeliveryAddress): Promise<ValidationResult> {
     try {
-      const response = await apiClient.post<ValidationResult>(
-        '/api/delivery/validate-delivery-address',
-        address
-      );
+      console.log('Validating delivery address:', address);
+      const response = await apiClient.post<ValidationResult>('/delivery/validate-delivery-address', address);
+      console.log('Address validation response:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error('Error validating address:', error);
-      if (error.response?.status === 401) {
-        throw new Error('Please log in to validate delivery address');
+      console.error('Error validating delivery address:', error);
+      if (error.response) {
+        console.error('Error response:', {
+          status: error.response.status,
+          data: error.response.data
+        });
       }
       throw new Error('Failed to validate delivery address. Please try again later.');
     }

@@ -11,6 +11,7 @@ interface CartItem {
 }
 
 interface Cart {
+  success: Cart;
   id: string;
   userId: string;
   items: CartItem[];
@@ -60,6 +61,18 @@ export const cartService = {
   // Remove item from cart
   removeFromCart: async (itemId: string): Promise<Cart> => {
     const response = await apiClient.delete(`/cart/${itemId}`);
+    return response.data;
+  },
+
+  // Clear entire cart
+  clearCart: async (): Promise<{ message: string }> => {
+    const response = await apiClient.delete('/cart');
+    return response.data;
+  },
+
+  // Sync cart (authenticated)
+  syncCart: async (cartItems: AddToCartData[]): Promise<Cart> => {
+    const response = await apiClient.post('/cart/sync', { items: cartItems });
     return response.data;
   },
 

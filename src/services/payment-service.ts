@@ -40,6 +40,8 @@ type PaymentService = {
   logPaymentData: (data: InitializePaymentData) => void;
   initializePayment: (data: InitializePaymentData) => Promise<PaymentInitialization>;
   verifyPayment: (reference: string) => Promise<PaymentVerification>;
+  verifyPaymentPost: (reference: string) => Promise<PaymentVerification>;
+  handlePaymentWebhook: (webhookData: any) => Promise<void>;
   isPaystackLoaded: () => boolean;
   clearPaymentData: () => void;
   getStoredPaymentData: () => { reference: string | null; orderId: string | null };
@@ -140,5 +142,31 @@ export const paymentService: PaymentService = {
       reference: localStorage.getItem('paymentReference'),
       orderId: localStorage.getItem('orderId')
     };
+  },
+
+  verifyPaymentPost: async (reference: string): Promise<PaymentVerification> => {
+    if (!reference) {
+      throw new Error('Payment reference is required');
+    }
+
+    try {
+      const response = await apiClient.post<PaymentVerification>(`/payment/verify/${reference}`);
+      console.log('[PaymentService] Payment verified (POST):', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[PaymentService] Payment verification error (POST):', error);
+      throw error instanceof Error ? error : new Error('Payment verification failed');
+    }
+  },
+
+  handlePaymentWebhook: async (webhookData: any): Promise<void> => {
+    try {
+      console.log('[PaymentService] Processing payment webhook:', webhookData);
+      await apiClient.post('/payment/webhook', webhookData);
+      console.log('[PaymentService] Payment webhook processed successfully');
+    } catch (error) {
+      console.error('[PaymentService] Payment webhook processing error:', error);
+      throw error instanceof Error ? error : new Error('Payment webhook processing failed');
+    }
   }
 };

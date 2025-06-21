@@ -6,6 +6,7 @@ import { Heart, ShoppingCart, Loader2 } from 'lucide-react';
 import { useWishlist } from '@/context/WishlistContext';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
+import { useCurrency } from '@/context/CurrencyContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +18,7 @@ const Wishlist = () => {
   const { items: productIds, removeFromWishlist } = useWishlist();
   const { addToCart } = useCart();
   const { isAuthenticated } = useAuth();
+  const { formatPrice } = useCurrency();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
@@ -231,7 +233,7 @@ const Wishlist = () => {
                 <Link to={`/product/${product.id}`} className="hover:text-indigo-600 transition-colors duration-300">
                   <h3 className="font-semibold text-xl text-gray-900 mb-2 truncate">{product.name}</h3>
                 </Link>
-                <p className="text-lg font-semibold text-gray-900 mb-4">${product.price.toFixed(2)}</p>
+                <p className="text-lg font-semibold text-gray-900 mb-4">{formatPrice(product.price)}</p>
 
                 <div className="flex justify-between items-center">
                   <Button

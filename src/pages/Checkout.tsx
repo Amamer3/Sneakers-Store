@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, AlertTriangle, RefreshCcw } from 'lucide-react';
+import { Loader2, AlertTriangle, RefreshCcw, LogIn } from 'lucide-react';
 import type { CreateOrderInput, Order } from '@/types/order';
 
 interface OrderItem {
@@ -39,11 +39,24 @@ interface CheckoutState {
 
 export default function Checkout() {
   const { items, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { currentZone } = useDelivery();
   const { formatPrice } = useCurrency();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Check authentication status and redirect if not logged in
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      toast({
+        title: 'Authentication Required',
+        description: 'Please log in to proceed with checkout.',
+        variant: 'destructive',
+      });
+      // Redirect to login with return URL
+      navigate('/login?redirect=/checkout');
+    }
+  }, [isAuthenticated, isLoading, navigate, toast]);
 
   const buyNowItem = window.sessionStorage.getItem('buyNowItem') 
     ? JSON.parse(window.sessionStorage.getItem('buyNowItem')!) 
@@ -349,6 +362,41 @@ export default function Checkout() {
       });
     }
   };
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading checkout...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show authentication required message if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-md mx-auto">
+          <Alert>
+            <LogIn className="h-4 w-4" />
+            <AlertTitle>Authentication Required</AlertTitle>
+            <AlertDescription className="flex flex-col gap-4">
+              <p>You need to be logged in to proceed with checkout.</p>
+              <Button onClick={() => navigate('/login?redirect=/checkout')} className="w-full">
+                <LogIn className="mr-2 h-4 w-4" />
+                Go to Login
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
 
   // Display network error if any
   if (networkError) {

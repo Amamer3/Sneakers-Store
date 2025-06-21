@@ -61,4 +61,22 @@ export const wishlistService = {
       throw error;
     }
   },
+
+  // Clear entire wishlist
+  clearWishlist: async (): Promise<void> => {
+    try {
+      console.log('Clearing entire wishlist');
+      const response = await apiClient.delete('/users/wishlist');
+      console.log('Clear wishlist response:', response.data);
+    } catch (error) {
+      console.error('Error clearing wishlist:', error);
+      if (error.response) {
+        console.error('Error response:', {
+          status: error.response.status,
+          data: error.response.data
+        });
+      }
+      throw error;
+    }
+  },
 };

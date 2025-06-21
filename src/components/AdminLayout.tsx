@@ -8,7 +8,11 @@ import {
   LogOut,
   Menu,
   BarChart3,
-  AlertTriangle
+  AlertTriangle,
+  ClipboardList,
+  Warehouse,
+  Gift,
+  Bell
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -61,6 +65,10 @@ const AdminLayout = () => {
     { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/products', icon: Package, label: 'Products' },
     { path: '/admin/orders', icon: ShoppingCart, label: 'Orders' },
+    { path: '/admin/order-management', icon: ClipboardList, label: 'Order Management' },
+    { path: '/admin/inventory', icon: Warehouse, label: 'Inventory' },
+    { path: '/admin/coupons', icon: Gift, label: 'Coupons' },
+    { path: '/admin/notifications', icon: Bell, label: 'Notifications' },
     { path: '/admin/users', icon: Users, label: 'Users' },
     { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' }
   ];

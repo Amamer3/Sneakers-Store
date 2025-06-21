@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, Package } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { useCurrency } from '@/context/CurrencyContext';
 
 // Utility function for dates
@@ -30,13 +30,15 @@ const formatDate = (dateString: string | Date) => {
 };
 
 const OrderStatusBadgeVariant: Record<Order['status'], 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  pending: 'secondary',
-  processing: 'secondary',
-  shipped: 'default',
-  delivered: 'default',
-  cancelled: 'destructive',
-  failed: 'default'
-};
+  'pending': 'secondary',
+  'confirmed': 'default',
+  'processing': 'secondary',
+  'shipped': 'default',
+  'delivered': 'default',
+  'cancelled': 'destructive',
+  'refunded': 'outline',
+  'failed': 'destructive'
+} as const;
 
 const OrderDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();

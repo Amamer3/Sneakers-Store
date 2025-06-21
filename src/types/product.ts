@@ -35,6 +35,7 @@ export interface Product {
   description?: string;
   sizes?: string[];
   category: string;
+  sku?: string;
   inStock: boolean;
   featured: boolean;
   createdAt: string;

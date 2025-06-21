@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Navbar from '@/components/Navbar';
 import { Package, Truck, CheckCircle, Clock, Search, MapPin, AlertCircle } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 const OrderTracking = () => {
   const { user } = useAuth();
@@ -31,7 +31,7 @@ const OrderTracking = () => {
       }
 
       try {
-        const response = await orderService.getUserOrders(page);
+        const response = await orderService.getMyOrders(page);
         setUserOrders(prev => page === 1 ? response.items : [...prev, ...response.items]);
         setHasMore(response.total > page * response.limit);
         setError('');

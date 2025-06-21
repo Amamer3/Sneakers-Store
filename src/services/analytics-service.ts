@@ -38,10 +38,50 @@ const getProductsByCategory = async (): Promise<Record<string, number>> => {
   return response.data;
 };
 
+const getOrderAnalytics = async (
+  interval: 'daily' | 'weekly' | 'monthly',
+  startDate: string,
+  endDate: string
+): Promise<any> => {
+  const response = await apiClient.get('/analytics/orders', {
+    params: { interval, startDate, endDate }
+  });
+  return response.data;
+};
+
+const getProductAnalytics = async (): Promise<any> => {
+  const response = await apiClient.get('/analytics/products');
+  return response.data;
+};
+
+const getTopSellingProducts = async (limit = 10): Promise<any> => {
+  const response = await apiClient.get('/analytics/products/top-selling', {
+    params: { limit }
+  });
+  return response.data;
+};
+
+const getLowStockProducts = async (threshold = 10): Promise<any> => {
+  const response = await apiClient.get('/analytics/products/low-stock', {
+    params: { threshold }
+  });
+  return response.data;
+};
+
+const getCustomerAnalytics = async (): Promise<any> => {
+  const response = await apiClient.get('/analytics/customers');
+  return response.data;
+};
+
 export {
   getOverviewStats,
   getRevenueStats,
   getProductsByCategory,
+  getOrderAnalytics,
+  getProductAnalytics,
+  getTopSellingProducts,
+  getLowStockProducts,
+  getCustomerAnalytics,
   type OverviewStats,
   type RevenueStats
 };

@@ -34,12 +34,15 @@ const getOrderStatusBadgeVariant = (status: string): "default" | "destructive" |
     case 'pending':
     case 'processing':
       return 'secondary';
+    case 'confirmed':
     case 'shipped':
     case 'delivered':
       return 'default';
     case 'cancelled':
     case 'failed':
       return 'destructive';
+    case 'refunded':
+      return 'outline';
     default:
       return 'outline';
   }

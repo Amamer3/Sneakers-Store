@@ -5,6 +5,13 @@ const convertOrder = (order: any): Order => {  // Helper to safely convert dates
   const toValidDate = (dateValue: any): string => {
     if (!dateValue) return new Date().toISOString();
     try {
+      // Handle Firebase Timestamp objects
+      if (dateValue && typeof dateValue === 'object' && '_seconds' in dateValue) {
+        const date = new Date(dateValue._seconds * 1000 + Math.floor(dateValue._nanoseconds / 1000000));
+        return date.toISOString();
+      }
+      
+      // Handle regular date values
       const date = new Date(dateValue);
       // Check if the date is valid
       if (isNaN(date.getTime())) {
@@ -59,10 +66,12 @@ const convertOrder = (order: any): Order => {  // Helper to safely convert dates
     id: order.id,
     userId: userInfo.id,
     items,
+    subtotal: order.subtotal || (total - (order.tax || 0) - (order.deliveryFee || 0)),
     status: order.status || 'pending',
     total,
     tax: order.tax || 0,
     deliveryFee: order.deliveryFee || 0,
+    currency: order.currency || 'GHS',
     shipping,
     shippingAddress: order.shippingAddress || shipping.address,
     user,
@@ -102,7 +111,7 @@ interface OrderQueryParams {
 
 interface OrderServiceInterface {  // User endpoints
   createOrder(orderData: CreateOrderInput): Promise<Order>;
-  getMyOrders(): Promise<PaginatedResponse<Order>>;
+  getMyOrders(page?: number, limit?: number, filters?: any): Promise<PaginatedResponse<Order>>;
   getOrderById(orderId: string): Promise<Order>;
 
   // Debug method to print order data
@@ -154,9 +163,16 @@ export const orderService: OrderServiceInterface = {
     }
   },
   // GET /api/orders/my - Get authenticated user's orders
-  async getMyOrders(): Promise<PaginatedResponse<Order>> {
+  async getMyOrders(page: number = 1, limit: number = 10, filters?: any): Promise<PaginatedResponse<Order>> {
     try {
-      const response = await apiClient.get<any>('/api/orders/my');
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        ...(filters && Object.fromEntries(
+          Object.entries(filters).map(([key, value]) => [key, String(value)])
+        ))
+      });
+      const response = await apiClient.get<any>(`/api/orders/my?${params}`);
       
       // Validate response data
       if (!response.data) {

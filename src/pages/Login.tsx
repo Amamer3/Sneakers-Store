@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { adminLogin } from '@/services/auth-service';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,10 @@ const Login: React.FC = () => {
   const [loginAttempts, setLoginAttempts] = useState<number>(0);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  
+  const redirectPath = searchParams.get('redirect') || '/';
 
   const MAX_ATTEMPTS = 5;
   const LOCKOUT_TIME = 15 * 60 * 1000; // 15 minutes
@@ -78,7 +81,7 @@ const Login: React.FC = () => {
           title: "Welcome back!",
           description: "You have successfully logged in.",
         });
-        navigate('/');
+        navigate(redirectPath);
       } else {
         setLoginAttempts(prev => prev + 1);
         toast({
