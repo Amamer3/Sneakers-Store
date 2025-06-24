@@ -522,7 +522,7 @@ const InventoryManagement: React.FC = () => {
                       <div className="space-y-1">
                         <p className="text-sm font-medium">{product.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          SKU: {product.sku || 'N/A'} • Category: {product.category}
+                          SKU: {product.sku || 'Not assigned'} • Category: {product.category}
                         </p>
                         <Badge className={product.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
                           {product.inStock ? 'In Stock' : 'Out of Stock'}

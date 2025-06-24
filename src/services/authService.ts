@@ -19,15 +19,17 @@ export interface AuthResponse {
 
 class AuthService {
   private setAuthHeader(token: string) {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    const formattedToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    axios.defaults.headers.common['Authorization'] = formattedToken;
   }
 
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await axios.post(`${API_URL}/auth/login`, credentials);
     if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
+      const formattedToken = response.data.token.startsWith('Bearer ') ? response.data.token : `Bearer ${response.data.token}`;
+      localStorage.setItem('token', formattedToken);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      this.setAuthHeader(response.data.token);
+      this.setAuthHeader(formattedToken);
     }
     return response.data;
   }
@@ -35,9 +37,10 @@ class AuthService {
   async adminLogin(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await axios.post(`${API_URL}/auth/admin/login`, credentials);
     if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
+      const formattedToken = response.data.token.startsWith('Bearer ') ? response.data.token : `Bearer ${response.data.token}`;
+      localStorage.setItem('token', formattedToken);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      this.setAuthHeader(response.data.token);
+      this.setAuthHeader(formattedToken);
     }
     return response.data;
   }

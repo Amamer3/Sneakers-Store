@@ -177,7 +177,7 @@ class NotificationService implements NotificationServiceInterface {
         ...(type && { type })
       });
       
-      const response = await apiClient.get(`/api/notifications?${params}`);
+      const response = await apiClient.get(`/notifications?${params}`);
       return {
         notifications: response.data.items || response.data.notifications || [],
         total: response.data.total || 0,
@@ -192,7 +192,7 @@ class NotificationService implements NotificationServiceInterface {
   // Mark a notification as read
   async markAsRead(notificationId: string): Promise<void> {
     try {
-      await apiClient.patch(`/api/notifications/${notificationId}/read`);
+      await apiClient.patch(`/notifications/${notificationId}/read`);
     } catch (error: any) {
       console.error('Error marking notification as read:', error);
       throw new Error(error.response?.data?.message || 'Failed to mark notification as read');
@@ -202,7 +202,7 @@ class NotificationService implements NotificationServiceInterface {
   // Mark all notifications as read
   async markAllAsRead(): Promise<void> {
     try {
-      await apiClient.patch('/api/notifications/read-all');
+      await apiClient.patch('/notifications/read-all');
     } catch (error: any) {
       console.error('Error marking all notifications as read:', error);
       throw new Error(error.response?.data?.message || 'Failed to mark all notifications as read');
@@ -212,7 +212,7 @@ class NotificationService implements NotificationServiceInterface {
   // Delete a notification
   async deleteNotification(notificationId: string): Promise<void> {
     try {
-      await apiClient.delete(`/api/notifications/${notificationId}`);
+      await apiClient.delete(`/notifications/${notificationId}`);
     } catch (error: any) {
       console.error('Error deleting notification:', error);
       throw new Error(error.response?.data?.message || 'Failed to delete notification');
@@ -222,7 +222,7 @@ class NotificationService implements NotificationServiceInterface {
   // Get notification statistics
   async getNotificationStats(): Promise<NotificationStats> {
     try {
-      const response = await apiClient.get('/api/notifications/stats');
+      const response = await apiClient.get('/notifications/stats');
       return response.data;
     } catch (error: any) {
       console.error('Error fetching notification stats:', error);
@@ -233,7 +233,7 @@ class NotificationService implements NotificationServiceInterface {
   // Get user notification preferences
   async getPreferences(): Promise<NotificationPreferences> {
     try {
-      const response = await apiClient.get('/api/notifications/preferences');
+      const response = await apiClient.get('/notifications/preferences');
       return response.data;
     } catch (error: any) {
       console.error('Error fetching notification preferences:', error);
@@ -244,7 +244,7 @@ class NotificationService implements NotificationServiceInterface {
   // Update notification preferences
   async updatePreferences(preferences: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
     try {
-      const response = await apiClient.put('/api/notifications/preferences', preferences);
+      const response = await apiClient.put('/notifications/preferences', preferences);
       return response.data;
     } catch (error: any) {
       console.error('Error updating notification preferences:', error);
@@ -255,7 +255,7 @@ class NotificationService implements NotificationServiceInterface {
   // Subscribe to push notifications
   async subscribeToPush(subscription: PushSubscription): Promise<void> {
     try {
-      await apiClient.post('/api/notifications/push/subscribe', subscription);
+      await apiClient.post('/notifications/push/subscribe', subscription);
     } catch (error: any) {
       console.error('Error subscribing to push notifications:', error);
       throw new Error(error.response?.data?.message || 'Failed to subscribe to push notifications');
@@ -265,7 +265,7 @@ class NotificationService implements NotificationServiceInterface {
   // Unsubscribe from push notifications
   async unsubscribeFromPush(): Promise<void> {
     try {
-      await apiClient.delete('/api/notifications/push/unsubscribe');
+      await apiClient.delete('/notifications/push/unsubscribe');
     } catch (error: any) {
       console.error('Error unsubscribing from push notifications:', error);
       throw new Error(error.response?.data?.message || 'Failed to unsubscribe from push notifications');
@@ -275,7 +275,7 @@ class NotificationService implements NotificationServiceInterface {
   // Test push notification
   async testPushNotification(): Promise<void> {
     try {
-      await apiClient.post('/api/notifications/push/test');
+      await apiClient.post('/notifications/push/test');
     } catch (error: any) {
       console.error('Error sending test push notification:', error);
       throw new Error(error.response?.data?.message || 'Failed to send test push notification');
@@ -293,7 +293,7 @@ class NotificationService implements NotificationServiceInterface {
     channels?: string[];
   }): Promise<void> {
     try {
-      await apiClient.post('/api/admin/notifications/send', notification);
+      await apiClient.post('/admin/notifications/send', notification);
     } catch (error: any) {
       console.error('Error sending notification:', error);
       throw new Error(error.response?.data?.message || 'Failed to send notification');
@@ -311,7 +311,7 @@ class NotificationService implements NotificationServiceInterface {
     userFilter?: Record<string, any>;
   }): Promise<void> {
     try {
-      await apiClient.post('/api/admin/notifications/broadcast', notification);
+      await apiClient.post('/admin/notifications/broadcast', notification);
     } catch (error: any) {
       console.error('Error broadcasting notification:', error);
       throw new Error(error.response?.data?.message || 'Failed to broadcast notification');
@@ -321,7 +321,7 @@ class NotificationService implements NotificationServiceInterface {
   // Admin: Get notification templates
   async getNotificationTemplates(): Promise<NotificationTemplate[]> {
     try {
-      const response = await apiClient.get('/api/admin/notifications/templates');
+      const response = await apiClient.get('/admin/notifications/templates');
       return response.data.items || response.data;
     } catch (error: any) {
       console.error('Error fetching notification templates:', error);
@@ -332,7 +332,7 @@ class NotificationService implements NotificationServiceInterface {
   // Admin: Create notification template
   async createTemplate(template: Omit<NotificationTemplate, 'id'>): Promise<NotificationTemplate> {
     try {
-      const response = await apiClient.post('/api/admin/notifications/templates', template);
+      const response = await apiClient.post('/admin/notifications/templates', template);
       return response.data;
     } catch (error: any) {
       console.error('Error creating notification template:', error);
@@ -343,7 +343,7 @@ class NotificationService implements NotificationServiceInterface {
   // Admin: Update notification template
   async updateTemplate(id: string, template: Partial<NotificationTemplate>): Promise<NotificationTemplate> {
     try {
-      const response = await apiClient.put(`/api/admin/notifications/templates/${id}`, template);
+      const response = await apiClient.put(`/admin/notifications/templates/${id}`, template);
       return response.data;
     } catch (error: any) {
       console.error('Error updating notification template:', error);
@@ -354,7 +354,7 @@ class NotificationService implements NotificationServiceInterface {
   // Admin: Delete notification template
   async deleteTemplate(id: string): Promise<void> {
     try {
-      await apiClient.delete(`/api/admin/notifications/templates/${id}`);
+      await apiClient.delete(`/admin/notifications/templates/${id}`);
     } catch (error: any) {
       console.error('Error deleting notification template:', error);
       throw new Error(error.response?.data?.message || 'Failed to delete notification template');

@@ -29,9 +29,10 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const formatPrice = (amount: number): string => {
     try {
-      if (isNaN(amount)) {
+      if (isNaN(amount) || amount < 0) {
         console.warn('Invalid amount for formatting:', amount);
-        return 'N/A';
+        // Return formatted zero instead of N/A
+        return currencyService.formatPrice(0, currency);
       }
       // Since amount is always in GHS, convert to USD if needed
       const finalAmount = currency === 'USD' ? currencyService.convert(amount, 'GHS', 'USD') : amount;
@@ -39,7 +40,8 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch (err) {
       console.error('Error formatting price:', err);
       setError('Failed to format price');
-      return 'N/A';
+      // Return formatted zero instead of N/A
+      return currencyService.formatPrice(0, currency);
     }
   };
 

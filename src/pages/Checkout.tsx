@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useDelivery } from '@/context/DeliveryContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { orderService } from '@/services/order-service';
+import { inventoryService } from '@/services/inventory-service';
 import { paymentService } from '@/services/payment-service';
 import { PaymentMethodSelector } from '@/components/PaymentMethodSelector';
 import { DeliveryInstructions } from '@/components/DeliveryInstructions';
@@ -28,7 +29,7 @@ interface OrderItem {
 
 interface CheckoutState {
   isProcessing: boolean;
-  currentStep: 'validating' | 'processing-payment' | 'creating-order' | 'completed';
+  currentStep: 'validating' | 'validating-stock' | 'processing-payment' | 'creating-order' | 'completed';
   error: string | null;
   errorDetails?: {
     code?: string;
@@ -92,6 +93,31 @@ export default function Checkout() {
     setShippingInfo(prev => ({ ...prev, [field]: value }));
   };
 
+  const validateCartStock = async () => {
+    try {
+      const stockItems = allItems.map(item => ({
+        productId: item.productId,
+        size: item.size,
+        quantity: item.quantity
+      }));
+      
+      const bulkStockCheck = await inventoryService.bulkCheckStock(stockItems);
+      
+      if (!bulkStockCheck.allAvailable) {
+        const unavailableItems = bulkStockCheck.results
+          .filter(result => !result.isAvailable)
+          .map(result => {
+            const item = allItems.find(i => i.productId === result.productId);
+            return `${item?.name || 'Unknown item'} (Available: ${result.availableQuantity})`;
+          });
+        
+        throw new Error(`The following items are no longer available: ${unavailableItems.join(', ')}`);
+      }
+    } catch (error: any) {
+      throw new Error(`Stock validation failed: ${error.message}`);
+    }
+  };
+
   const createOrder = async () => {
     const calculatedTotal = allItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) + tax + deliveryFee;
     if (!calculatedTotal || calculatedTotal <= 0) {
@@ -104,7 +130,7 @@ export default function Checkout() {
 
     const orderInput: CreateOrderInput = {
       items: allItems.map(item => ({
-        productId: item.id,
+        productId: item.productId,
         quantity: item.quantity,
         name: item.name,
         price: item.price,
@@ -242,9 +268,17 @@ export default function Checkout() {
 
     try {
       // Step 1: Validate all required fields and cart state
-      validateFields();      // Step 2: Create order first
+      validateFields();
+      
+      // Step 2: Validate stock availability
+      setCheckoutState(prev => ({ ...prev, currentStep: 'validating-stock' }));
+      await validateCartStock();
+      
+      // Step 3: Create order
       setCheckoutState(prev => ({ ...prev, currentStep: 'creating-order' }));
-      const order = await createOrder();      // Step 3: Process payment based on method
+      const order = await createOrder();
+      
+      // Step 4: Process payment based on method
       if (paymentMethod === 'card') {
         await processPayment(order);
         // All success handling is done in processPayment
@@ -272,6 +306,27 @@ export default function Checkout() {
         timestamp: new Date().toISOString()
       };
 
+      // Handle specific error types
+      let errorTitle = 'Checkout Failed';
+      let errorDescription = `Error: ${errorDetails.details}. Please try again or contact support if the problem persists.`;
+      
+      if (errorDetails.details.includes('Insufficient stock')) {
+        errorTitle = 'Item Out of Stock';
+        errorDescription = 'One or more items in your cart are no longer available. Please remove them and try again.';
+        
+        // Suggest refreshing cart to get updated stock info
+        setTimeout(() => {
+          toast({
+            title: 'Tip',
+            description: 'Refresh your cart to see updated availability.',
+            variant: 'default'
+          });
+        }, 3000);
+      } else if (errorDetails.details.includes('Invalid product')) {
+        errorTitle = 'Invalid Product';
+        errorDescription = 'One or more items in your cart are no longer valid. Please refresh your cart and try again.';
+      }
+
       setCheckoutState(prev => ({ 
         ...prev, 
         error: 'Failed to process checkout. Please try again.',
@@ -281,8 +336,8 @@ export default function Checkout() {
       // Show detailed error to user
       toast({
         variant: 'destructive',
-        title: 'Checkout Failed',
-        description: `Error: ${errorDetails.details}. Please try again or contact support if the problem persists.`
+        title: errorTitle,
+        description: errorDescription
       });
     } finally {
       setCheckoutState(prev => ({ ...prev, isProcessing: false }));

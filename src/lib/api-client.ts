@@ -128,7 +128,8 @@ const refreshToken = async (): Promise<string | null> => {
     });
 
     const { token } = response.data;
-    localStorage.setItem('token', token);
+    const formattedToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    localStorage.setItem('token', formattedToken);
     return token;
   } catch (error) {
     localStorage.removeItem('token');

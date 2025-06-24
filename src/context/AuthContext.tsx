@@ -45,7 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Restore auth header
           const token = authService.getToken();
           if (token) {
-            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            const formattedToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+            axios.defaults.headers.common['Authorization'] = formattedToken;
           }
         }
       } catch (error) {

@@ -116,12 +116,38 @@ const formatOrder = async (order: any): Promise<FormattedOrder> => {
     };
   })) : [];
 
+  // Calculate missing financial properties
+  let subtotal = safeNumber(order.subtotal);
+  let tax = safeNumber(order.tax);
+  let deliveryFee = safeNumber(order.deliveryFee);
+  
+  // Convert financial values from USD to GHS if needed
+  if (order.currency === 'USD') {
+    subtotal = await convertToGHS(subtotal);
+    tax = await convertToGHS(tax);
+    deliveryFee = await convertToGHS(deliveryFee);
+  }
+  
+  // If subtotal is not provided, calculate from items
+  if (!subtotal && items.length > 0) {
+    subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  }
+  
+  // If total is not calculated correctly, recalculate
+  if (!total || total === 0) {
+    total = subtotal + tax + deliveryFee;
+  }
+
   const formatted: FormattedOrder = {
     id: order.id || String(Math.random()),
     userId: order.userId || order.user?.id || '',
     items,
     status: order.status || 'pending',
+    subtotal,
+    tax,
+    deliveryFee,
     total,
+    currency: 'GHS', // Always GHS after conversion
     shippingAddress: order.shippingAddress || order.shipping?.address || {},
     shipping: order.shipping || {
       name: order.customer?.name || 'Unknown',
@@ -132,7 +158,8 @@ const formatOrder = async (order: any): Promise<FormattedOrder> => {
     user: order.user || {
       id: order.userId || '',
       email: order.customer?.email || '',
-      name: order.customer?.name || 'Unknown'
+      name: order.customer?.name || 'Unknown',
+      phone: order.customer?.phone || order.shipping?.phone || ''
     },
     customer: {
       name: order.customer?.name || order.shipping?.name || order.user?.name || 'Unknown',
@@ -150,7 +177,7 @@ export const dashboardService: DashboardService = {
   async getStats() {
     try {
       console.log('Fetching dashboard stats...');
-      const response = await apiClient.get('/api/admin/dashboard/stats');
+      const response = await apiClient.get('/admin/dashboard/stats');
       
       console.log('Dashboard stats raw response:', response);
       
@@ -188,7 +215,7 @@ export const dashboardService: DashboardService = {
   async getRecentOrders(limit: number = 10) {
     try {
       console.log('Fetching recent orders...');
-      const response = await apiClient.get('/api/admin/dashboard/recent-orders', {
+      const response = await apiClient.get('/admin/dashboard/recent-orders', {
         params: { limit }
       });
 

@@ -25,7 +25,7 @@ api.interceptors.request.use(
     }
 
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
     }
     return config;
   },

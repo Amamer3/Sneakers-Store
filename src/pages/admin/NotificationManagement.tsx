@@ -581,7 +581,7 @@ const NotificationManagement: React.FC = () => {
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Types</SelectItem>
+                    <SelectItem value="all-types">All Types</SelectItem>
                     <SelectItem value={NotificationTypes.GENERAL}>General</SelectItem>
                     <SelectItem value={NotificationTypes.ORDER}>Order</SelectItem>
                     <SelectItem value={NotificationTypes.PAYMENT}>Payment</SelectItem>
@@ -598,7 +598,7 @@ const NotificationManagement: React.FC = () => {
                     <SelectValue placeholder="Priority" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Priorities</SelectItem>
+                    <SelectItem value="all-priorities">All Priorities</SelectItem>
                     <SelectItem value={NotificationPriorities.HIGH}>High</SelectItem>
                     <SelectItem value={NotificationPriorities.MEDIUM}>Medium</SelectItem>
                     <SelectItem value={NotificationPriorities.LOW}>Low</SelectItem>

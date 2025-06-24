@@ -77,7 +77,7 @@ export const couponService: CouponServiceInterface = {
   // Validate coupon without applying it
   async validateCoupon(request: ApplyCouponRequest): Promise<CouponValidationResult> {
     try {
-      const response = await apiClient.post('/api/coupons/validate', request);
+      const response = await apiClient.post('/coupons/validate', request);
       return response.data;
     } catch (error: any) {
       console.error('Error validating coupon:', error);
@@ -91,7 +91,7 @@ export const couponService: CouponServiceInterface = {
   // Apply coupon and get discount details
   async applyCoupon(request: ApplyCouponRequest): Promise<OrderDiscount> {
     try {
-      const response = await apiClient.post('/api/coupons/apply', request);
+      const response = await apiClient.post('/coupons/apply', request);
       return response.data;
     } catch (error: any) {
       console.error('Error applying coupon:', error);
@@ -102,7 +102,7 @@ export const couponService: CouponServiceInterface = {
   // Get available coupons for user
   async getUserCoupons(): Promise<Coupon[]> {
     try {
-      const response = await apiClient.get('/api/coupons/user');
+      const response = await apiClient.get('/coupons/user');
       return response.data.items || response.data;
     } catch (error: any) {
       console.error('Error fetching user coupons:', error);
@@ -113,7 +113,7 @@ export const couponService: CouponServiceInterface = {
   // Admin: Get all coupons
   async getAllCoupons(): Promise<Coupon[]> {
     try {
-      const response = await apiClient.get('/api/admin/coupons');
+      const response = await apiClient.get('/admin/coupons');
       return response.data.items || response.data;
     } catch (error: any) {
       console.error('Error fetching all coupons:', error);
@@ -124,7 +124,7 @@ export const couponService: CouponServiceInterface = {
   // Admin: Get coupon by ID
   async getCouponById(id: string): Promise<Coupon> {
     try {
-      const response = await apiClient.get(`/api/admin/coupons/${id}`);
+      const response = await apiClient.get(`/admin/coupons/${id}`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching coupon:', error);
@@ -135,7 +135,7 @@ export const couponService: CouponServiceInterface = {
   // Admin: Create new coupon
   async createCoupon(coupon: Omit<Coupon, 'id' | 'usageCount' | 'createdAt' | 'updatedAt'>): Promise<Coupon> {
     try {
-      const response = await apiClient.post('/api/admin/coupons', coupon);
+      const response = await apiClient.post('/admin/coupons', coupon);
       return response.data;
     } catch (error: any) {
       console.error('Error creating coupon:', error);
@@ -146,7 +146,7 @@ export const couponService: CouponServiceInterface = {
   // Admin: Update coupon
   async updateCoupon(id: string, updates: Partial<Coupon>): Promise<Coupon> {
     try {
-      const response = await apiClient.patch(`/api/admin/coupons/${id}`, updates);
+      const response = await apiClient.patch(`/admin/coupons/${id}`, updates);
       return response.data;
     } catch (error: any) {
       console.error('Error updating coupon:', error);
@@ -157,7 +157,7 @@ export const couponService: CouponServiceInterface = {
   // Admin: Delete coupon
   async deleteCoupon(id: string): Promise<void> {
     try {
-      await apiClient.delete(`/api/admin/coupons/${id}`);
+      await apiClient.delete(`/admin/coupons/${id}`);
     } catch (error: any) {
       console.error('Error deleting coupon:', error);
       throw new Error(error.response?.data?.message || 'Failed to delete coupon');
@@ -167,7 +167,7 @@ export const couponService: CouponServiceInterface = {
   // Admin: Get coupon usage statistics
   async getCouponStats(): Promise<CouponUsageStats> {
     try {
-      const response = await apiClient.get('/api/admin/coupons/stats');
+      const response = await apiClient.get('/admin/coupons/stats');
       return response.data;
     } catch (error: any) {
       console.error('Error fetching coupon stats:', error);
@@ -232,7 +232,7 @@ export const couponService: CouponServiceInterface = {
 
     if (userId && coupon.userLimit) {
       try {
-        const response = await apiClient.get(`/api/coupons/${coupon.id}/user-usage/${userId}`);
+        const response = await apiClient.get(`/coupons/${coupon.id}/user-usage/${userId}`);
         const userUsageCount = response.data.usageCount || 0;
         return userUsageCount < coupon.userLimit;
       } catch (error) {

@@ -205,11 +205,86 @@ const Users = () => {
     }
   };
 
+  const validateAdminForm = () => {
+    const { name, email, password } = adminFormData;
+    
+    if (!name?.trim()) {
+      toast({
+        title: 'Validation Error',
+        description: 'Name is required',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    
+    if (name.trim().length < 2) {
+      toast({
+        title: 'Validation Error',
+        description: 'Name must be at least 2 characters long',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    
+    if (!email?.trim()) {
+      toast({
+        title: 'Validation Error',
+        description: 'Email is required',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter a valid email address',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    
+    if (!password?.trim()) {
+      toast({
+        title: 'Validation Error',
+        description: 'Password is required',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    
+    if (password.trim().length < 6) {
+      toast({
+        title: 'Validation Error',
+        description: 'Password must be at least 6 characters long',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleCreateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form data
+    if (!validateAdminForm()) {
+      return;
+    }
+    
     try {
       setState(prev => ({ ...prev, loading: true }));
-      await authService.registerAdmin(adminFormData);
+      
+      // Sanitize form data
+      const sanitizedData = {
+        name: adminFormData.name.trim(),
+        email: adminFormData.email.trim().toLowerCase(),
+        password: adminFormData.password.trim()
+      };
+      
+      await authService.registerAdmin(sanitizedData);
       toast({
         title: 'Success',
         description: 'Admin user created successfully',
@@ -219,9 +294,24 @@ const Users = () => {
       loadUsers(state.page); // Refresh the users list
     } catch (error: any) {
       console.error('Error creating admin:', error);
+      
+      let errorMessage = 'Failed to create admin user';
+      
+      if (error?.response?.status === 400) {
+        errorMessage = error?.response?.data?.message || 'Invalid input data';
+      } else if (error?.response?.status === 409) {
+        errorMessage = 'An admin with this email already exists';
+      } else if (error?.response?.status === 500) {
+        errorMessage = 'Server error. Please try again later or contact support';
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: 'Error',
-        description: error?.response?.data?.message || 'Failed to create admin user',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {

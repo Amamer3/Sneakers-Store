@@ -98,7 +98,8 @@ const OrderManagement: React.FC = () => {
     { value: 'shipped', label: 'Shipped', color: 'bg-indigo-100 text-indigo-800' },
     { value: 'delivered', label: 'Delivered', color: 'bg-green-100 text-green-800' },
     { value: 'cancelled', label: 'Cancelled', color: 'bg-red-100 text-red-800' },
-    { value: 'refunded', label: 'Refunded', color: 'bg-gray-100 text-gray-800' }
+    { value: 'refunded', label: 'Refunded', color: 'bg-orange-100 text-orange-800' },
+    { value: 'failed', label: 'Failed', color: 'bg-gray-100 text-gray-800' }
   ];
 
   const fetchOrders = useCallback(async () => {
@@ -143,7 +144,9 @@ const OrderManagement: React.FC = () => {
   }, [fetchOrders]);
 
   const handleFilterChange = (key: keyof OrderFilters, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    // Convert "all" values to undefined to clear the filter
+    const filterValue = value === 'all' || value === 'all-types' || value === 'all-priorities' ? undefined : value;
+    setFilters(prev => ({ ...prev, [key]: filterValue }));
     setCurrentPage(1); // Reset to first page when filtering
   };
 
@@ -327,14 +330,14 @@ const OrderManagement: React.FC = () => {
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select
-                value={filters.status || ''}
-                onValueChange={(value) => handleFilterChange('status', value || undefined)}
+                value={filters.status || 'all'}
+                onValueChange={(value) => handleFilterChange('status', value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All statuses</SelectItem>
+                  <SelectItem value="all">All statuses</SelectItem>
                   {statusOptions.map((status) => (
                     <SelectItem key={status.value} value={status.value}>
                       {status.label}
@@ -614,15 +617,15 @@ const OrderManagement: React.FC = () => {
                   <CardContent className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm font-medium">Name:</span>
-                      <span className="text-sm">{selectedOrder.user?.name || 'N/A'}</span>
+                      <span className="text-sm">{selectedOrder.user?.name || 'Not provided'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm font-medium">Email:</span>
-                      <span className="text-sm">{selectedOrder.user?.email || 'N/A'}</span>
+                      <span className="text-sm">{selectedOrder.user?.email || 'Not provided'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm font-medium">Phone:</span>
-                      <span className="text-sm">{selectedOrder.user?.phone || 'N/A'}</span>
+                      <span className="text-sm">{selectedOrder.user?.phone || 'Not provided'}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -640,7 +643,7 @@ const OrderManagement: React.FC = () => {
                         <div className="space-y-1">
                           <p className="text-sm font-medium">{item.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            SKU: {item.sku || 'N/A'} • Size: {item.size || 'N/A'}
+                            SKU: {item.sku || 'Not specified'} • Size: {item.size || 'Not specified'}
                           </p>
                         </div>
                         <div className="text-right">

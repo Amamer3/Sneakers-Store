@@ -16,9 +16,9 @@ import { useCurrency } from '@/context/CurrencyContext';
 
 // Utility function for dates
 const formatDate = (dateString: string | Date) => {
-  if (!dateString) return 'N/A';
+  if (!dateString) return 'Date not available';
   const date = new Date(dateString);
-  if (isNaN(date.getTime())) return 'N/A';
+  if (isNaN(date.getTime())) return 'Invalid date';
   
   return date.toLocaleDateString('en-GB', {
     year: 'numeric',
@@ -204,9 +204,9 @@ const OrderDetails: React.FC = () => {
                     <div>
                       <h3 className="text-sm font-medium text-gray-700">Customer Details</h3>
                       <div className="mt-2 text-sm text-gray-600 space-y-1">
-                        <p>Name: {order.shipping?.name || order.user?.name || 'N/A'}</p>
-                        <p>Email: {order.shipping?.email || order.user?.email || 'N/A'}</p>
-                        <p>Phone: {order.shipping?.phone || 'N/A'}</p>
+                        <p>Name: {order.shipping?.name || order.user?.name || 'Not provided'}</p>
+                        <p>Email: {order.shipping?.email || order.user?.email || 'Not provided'}</p>
+                        <p>Phone: {order.shipping?.phone || 'Not provided'}</p>
                       </div>
                     </div>
 

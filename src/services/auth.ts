@@ -89,19 +89,76 @@ export const authService = {
 
   async registerAdmin(data: RegisterData): Promise<AuthResponse> {
     try {
-      console.log('Registering new admin:', { name: data.name, email: data.email });
-      const response = await apiClient.post<AuthResponse>('/auth/admin/register', data);
-      console.log('Admin registration response:', response.data);
+      // Validate input data before sending
+      if (!data.name?.trim() || !data.email?.trim() || !data.password?.trim()) {
+        throw new Error('All fields (name, email, password) are required');
+      }
+      
+      if (data.password.length < 6) {
+        throw new Error('Password must be at least 6 characters long');
+      }
+      
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(data.email)) {
+        throw new Error('Please provide a valid email address');
+      }
+      
+      console.log('Registering new admin:', { 
+        name: data.name, 
+        email: data.email,
+        passwordLength: data.password.length 
+      });
+      
+      const response = await apiClient.post<AuthResponse>('/auth/admin/register', {
+        name: data.name.trim(),
+        email: data.email.trim().toLowerCase(),
+        password: data.password
+      });
+      
+      console.log('Admin registration successful:', {
+        userId: response.data.customer?.id,
+        email: response.data.customer?.email,
+        role: response.data.customer?.role
+      });
+      
       return response.data;
     } catch (error: any) {
-      console.error('Error registering admin:', error);
+      console.error('Error registering admin:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method
+      });
+      
+      // Enhanced error handling
       if (error.response) {
-        console.error('Error response:', {
-          status: error.response.status,
-          data: error.response.data
-        });
+        const { status, data } = error.response;
+        
+        switch (status) {
+          case 400:
+            throw new Error(data?.message || 'Invalid registration data provided');
+          case 401:
+            throw new Error('Unauthorized to create admin users');
+          case 403:
+            throw new Error('Insufficient permissions to create admin users');
+          case 409:
+            throw new Error('An admin with this email already exists');
+          case 422:
+            throw new Error(data?.message || 'Validation failed for registration data');
+          case 500:
+            throw new Error('Server error occurred. Please try again later or contact support');
+          case 503:
+            throw new Error('Service temporarily unavailable. Please try again later');
+          default:
+            throw new Error(data?.message || `Registration failed with status ${status}`);
+        }
+      } else if (error.request) {
+        throw new Error('Network error: Unable to connect to the server. Please check your internet connection');
+      } else {
+        throw new Error(error.message || 'An unexpected error occurred during registration');
       }
-      throw error;
     }
   },
 

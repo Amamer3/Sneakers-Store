@@ -129,7 +129,7 @@ export const orderService: OrderServiceInterface = {
       this.logOrderData(orderData);
 
       // Make the API call
-      const response = await apiClient.post('/api/orders', orderData);
+      const response = await apiClient.post('/orders', orderData);
       
       // Convert and validate the response
       if (!response.data) {
@@ -172,7 +172,7 @@ export const orderService: OrderServiceInterface = {
           Object.entries(filters).map(([key, value]) => [key, String(value)])
         ))
       });
-      const response = await apiClient.get<any>(`/api/orders/my?${params}`);
+      const response = await apiClient.get<any>(`/orders/my?${params}`);
       
       // Validate response data
       if (!response.data) {

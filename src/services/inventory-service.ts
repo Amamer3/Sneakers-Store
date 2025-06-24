@@ -101,7 +101,7 @@ export const inventoryService: InventoryServiceInterface = {
         ...(size && { size })
       });
       
-      const response = await apiClient.get(`/api/inventory/check?${params}`);
+      const response = await apiClient.get(`/inventory/check?${params}`);
       return response.data;
     } catch (error: any) {
       console.error('Error checking stock:', error);
@@ -112,7 +112,7 @@ export const inventoryService: InventoryServiceInterface = {
   // Check stock for multiple items at once
   async bulkCheckStock(items: Array<{ productId: string; size?: string; quantity: number }>): Promise<BulkStockCheck> {
     try {
-      const response = await apiClient.post('/api/inventory/bulk-check', { items });
+      const response = await apiClient.post('/inventory/bulk-check', { items });
       return response.data;
     } catch (error: any) {
       console.error('Error checking bulk stock:', error);
@@ -124,7 +124,7 @@ export const inventoryService: InventoryServiceInterface = {
   async getInventoryItem(productId: string, size?: string): Promise<InventoryItem> {
     try {
       const params = size ? `?size=${encodeURIComponent(size)}` : '';
-      const response = await apiClient.get(`/api/inventory/products/${productId}${params}`);
+      const response = await apiClient.get(`/inventory/products/${productId}${params}`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching inventory item:', error);
@@ -140,7 +140,7 @@ export const inventoryService: InventoryServiceInterface = {
     expirationMinutes: number = 30
   ): Promise<InventoryReservation> {
     try {
-      const response = await apiClient.post('/api/inventory/reserve', {
+      const response = await apiClient.post('/inventory/reserve', {
         productId,
         quantity,
         size,
@@ -156,7 +156,7 @@ export const inventoryService: InventoryServiceInterface = {
   // Release a stock reservation
   async releaseReservation(reservationId: string): Promise<void> {
     try {
-      await apiClient.delete(`/api/inventory/reservations/${reservationId}`);
+      await apiClient.delete(`/inventory/reservations/${reservationId}`);
     } catch (error: any) {
       console.error('Error releasing reservation:', error);
       throw new Error(error.response?.data?.message || 'Failed to release reservation');
@@ -166,7 +166,7 @@ export const inventoryService: InventoryServiceInterface = {
   // Confirm a reservation (convert to actual stock reduction)
   async confirmReservation(reservationId: string): Promise<void> {
     try {
-      await apiClient.post(`/api/inventory/reservations/${reservationId}/confirm`);
+      await apiClient.post(`/inventory/reservations/${reservationId}/confirm`);
     } catch (error: any) {
       console.error('Error confirming reservation:', error);
       throw new Error(error.response?.data?.message || 'Failed to confirm reservation');
@@ -176,7 +176,7 @@ export const inventoryService: InventoryServiceInterface = {
   // Extend reservation expiration time
   async extendReservation(reservationId: string, additionalMinutes: number): Promise<InventoryReservation> {
     try {
-      const response = await apiClient.patch(`/api/inventory/reservations/${reservationId}/extend`, {
+      const response = await apiClient.patch(`/inventory/reservations/${reservationId}/extend`, {
         additionalMinutes
       });
       return response.data;
@@ -189,7 +189,7 @@ export const inventoryService: InventoryServiceInterface = {
   // Get user's active reservations
   async getUserReservations(): Promise<InventoryReservation[]> {
     try {
-      const response = await apiClient.get('/api/inventory/reservations/my');
+      const response = await apiClient.get('/inventory/reservations/my');
       return response.data.items || response.data;
     } catch (error: any) {
       console.error('Error fetching user reservations:', error);
@@ -200,7 +200,7 @@ export const inventoryService: InventoryServiceInterface = {
   // Admin: Update stock quantity
   async updateStock(productId: string, size: string | undefined, quantity: number, reason: string): Promise<InventoryItem> {
     try {
-      const response = await apiClient.put(`/api/admin/inventory/products/${productId}/stock`, {
+      const response = await apiClient.put(`/admin/inventory/products/${productId}/stock`, {
         size,
         quantity,
         reason
@@ -215,7 +215,7 @@ export const inventoryService: InventoryServiceInterface = {
   // Admin: Adjust stock (add or subtract)
   async adjustStock(productId: string, size: string | undefined, adjustment: number, reason: string): Promise<InventoryItem> {
     try {
-      const response = await apiClient.patch(`/api/admin/inventory/products/${productId}/adjust`, {
+      const response = await apiClient.patch(`/admin/inventory/products/${productId}/adjust`, {
         size,
         adjustment,
         reason
@@ -235,7 +235,7 @@ export const inventoryService: InventoryServiceInterface = {
         ...(productId && { productId })
       });
       
-      const response = await apiClient.get(`/api/admin/inventory/movements?${params}`);
+      const response = await apiClient.get(`/admin/inventory/movements?${params}`);
       return response.data.items || response.data;
     } catch (error: any) {
       console.error('Error fetching stock movements:', error);
@@ -246,7 +246,7 @@ export const inventoryService: InventoryServiceInterface = {
   // Get low stock alerts
   async getLowStockAlerts(): Promise<LowStockAlert[]> {
     try {
-      const response = await apiClient.get('/api/admin/inventory/alerts/low-stock');
+      const response = await apiClient.get('/admin/inventory/alerts/low-stock');
       return response.data.items || response.data;
     } catch (error: any) {
       console.error('Error fetching low stock alerts:', error);
@@ -262,7 +262,7 @@ export const inventoryService: InventoryServiceInterface = {
     totalValue: number;
   }> {
     try {
-      const response = await apiClient.get('/api/admin/inventory/summary');
+      const response = await apiClient.get('/admin/inventory/summary');
       return response.data;
     } catch (error: any) {
       console.error('Error fetching stock summary:', error);
@@ -285,7 +285,7 @@ export const inventoryService: InventoryServiceInterface = {
   async getEstimatedRestockDate(productId: string, size?: string): Promise<string | null> {
     try {
       const params = size ? `?size=${encodeURIComponent(size)}` : '';
-      const response = await apiClient.get(`/api/inventory/products/${productId}/restock-estimate${params}`);
+      const response = await apiClient.get(`/inventory/products/${productId}/restock-estimate${params}`);
       return response.data.estimatedDate || null;
     } catch (error: any) {
       console.error('Error fetching restock estimate:', error);

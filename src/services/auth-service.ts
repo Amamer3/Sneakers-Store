@@ -17,7 +17,8 @@ export const adminLogin = async (email: string, password: string): Promise<Admin
   }
 
   // Store the token and session data
-  localStorage.setItem('token', data.token);
+  const formattedToken = data.token.startsWith('Bearer ') ? data.token : `Bearer ${data.token}`;
+  localStorage.setItem('token', formattedToken);
   localStorage.setItem('userRole', data.user.role);
   localStorage.setItem('user', JSON.stringify(data.user));
   sessionStorage.setItem('isAdminAuthenticated', 'true');

@@ -437,7 +437,7 @@ const CouponManagement: React.FC = () => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>
                 <SelectItem value="expired">Expired</SelectItem>
@@ -451,7 +451,7 @@ const CouponManagement: React.FC = () => {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all-types">All Types</SelectItem>
                 <SelectItem value="percentage">Percentage</SelectItem>
                     <SelectItem value="fixed">Fixed Amount</SelectItem>
                     <SelectItem value="shipping">Free Shipping</SelectItem>

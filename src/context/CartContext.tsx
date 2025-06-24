@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { cartService } from '@/services/cart-service';
 import { productService } from '@/services/product-service';
+import { inventoryService } from '@/services/inventory-service';
 import { useAuth } from './AuthContext';
 
 // API response types
@@ -131,6 +132,22 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('AddToCart called with:', { productId, quantity, size, isAuthenticated });
       console.log('Current token:', localStorage.getItem('token'));
       
+      // Check stock availability before adding to cart
+      try {
+        const stockCheck = await inventoryService.checkStock(productId, size || undefined, quantity);
+        if (!stockCheck.isAvailable) {
+          toast({
+            title: 'Item Unavailable',
+            description: `Only ${stockCheck.availableQuantity} items available in stock.`,
+            variant: 'destructive'
+          });
+          return;
+        }
+      } catch (stockError) {
+        console.warn('Stock check failed, proceeding with cart addition:', stockError);
+        // Continue with cart addition even if stock check fails (fallback)
+      }
+      
       if (isAuthenticated) {
         console.log('Adding to cart for authenticated user');
         try {
@@ -158,11 +175,31 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               name: product.name,
               image: product.images[0]?.url ?? '/placeholder.svg'
             };
-            const updatedItems = [...items, newItem];
-             console.log('Updated cart items:', updatedItems);
-             setItems(updatedItems);
-             localStorage.setItem('cart', JSON.stringify(updatedItems));
-             console.log('Cart items after state update (should show new items):', updatedItems);
+            
+            // Check if item already exists and update quantity instead of adding duplicate
+            const existingItemIndex = items.findIndex(
+              item => item.productId === productId && item.size === size
+            );
+            
+            let updatedItems: CartItem[];
+            if (existingItemIndex >= 0) {
+              // Update existing item quantity
+              updatedItems = items.map((item, index) => 
+                index === existingItemIndex 
+                  ? { ...item, quantity: item.quantity + quantity }
+                  : item
+              );
+              console.log('Updated existing item quantity');
+            } else {
+              // Add new item
+              updatedItems = [...items, newItem];
+              console.log('Added new item to cart');
+            }
+            
+            console.log('Updated cart items:', updatedItems);
+            setItems(updatedItems);
+            localStorage.setItem('cart', JSON.stringify(updatedItems));
+            console.log('Cart items after state update (should show new items):', updatedItems);
           } else {
             console.log('No items in response, loading cart manually');
             await loadCart();
@@ -189,7 +226,25 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               name: product.name,
               image: product.images[0]?.url ?? '/placeholder.svg'
             };
-            const updatedItems = [...items, newItem];
+            
+            // Check if item already exists and update quantity instead of adding duplicate
+            const existingItemIndex = items.findIndex(
+              item => item.productId === productId && item.size === size
+            );
+            
+            let updatedItems: CartItem[];
+            if (existingItemIndex >= 0) {
+              // Update existing item quantity
+              updatedItems = items.map((item, index) => 
+                index === existingItemIndex 
+                  ? { ...item, quantity: item.quantity + quantity }
+                  : item
+              );
+            } else {
+              // Add new item
+              updatedItems = [...items, newItem];
+            }
+            
             setItems(updatedItems);
             localStorage.setItem('cart', JSON.stringify(updatedItems));
           } else {
@@ -209,7 +264,27 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           name: product.name,
           image: product.images[0]?.url ?? '/placeholder.svg'
         };
-        const updatedItems = [...items, newItem];
+        
+        // Check if item already exists and update quantity instead of adding duplicate
+        const existingItemIndex = items.findIndex(
+          item => item.productId === productId && item.size === size
+        );
+        
+        let updatedItems: CartItem[];
+        if (existingItemIndex >= 0) {
+          // Update existing item quantity
+          updatedItems = items.map((item, index) => 
+            index === existingItemIndex 
+              ? { ...item, quantity: item.quantity + quantity }
+              : item
+          );
+          console.log('Updated existing item quantity for non-auth user');
+        } else {
+          // Add new item
+          updatedItems = [...items, newItem];
+          console.log('Added new item for non-auth user');
+        }
+        
         console.log('Updated cart items for non-auth user:', updatedItems);
         setItems(updatedItems);
         localStorage.setItem('cart', JSON.stringify(updatedItems));
