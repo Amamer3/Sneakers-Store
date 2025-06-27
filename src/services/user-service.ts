@@ -47,6 +47,46 @@ export interface UpdateAddressInput {
 }
 
 export const userService = {
+  // Mock data for fallback when backend is unavailable
+  _mockUsers: [
+    {
+      id: 'demo-admin-1',
+      name: 'Demo Admin User',
+      email: 'admin@sneakerstore.demo',
+      role: 'admin',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastLogin: new Date().toISOString(),
+      phone: '+233 20 123 4567',
+      isVerified: true
+    },
+    {
+      id: 'demo-user-1',
+      name: 'Demo Customer',
+      email: 'customer@sneakerstore.demo',
+      role: 'user',
+      status: 'active',
+      createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+      updatedAt: new Date(Date.now() - 86400000).toISOString(),
+      lastLogin: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+      phone: '+233 24 987 6543',
+      isVerified: true
+    },
+    {
+      id: 'demo-user-2',
+      name: 'Demo Shopper',
+      email: 'shopper@sneakerstore.demo',
+      role: 'user',
+      status: 'active',
+      createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+      updatedAt: new Date(Date.now() - 172800000).toISOString(),
+      lastLogin: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
+      phone: '+233 26 555 0123',
+      isVerified: false
+    }
+  ],
+
   // Get all users (Admin only)
   getUsers: async (page = 1, limit = 10, search = ''): Promise<PaginatedResponse<User>> => {
     try {
@@ -82,7 +122,28 @@ export const userService = {
           case 403:
             throw new Error('Insufficient permissions to view users');
           case 404:
-            throw new Error('Users endpoint not found. Please contact support');
+            // Handle backend unavailable with fallback data
+            console.warn('🔄 Backend API not available, using demo data');
+            
+            // Filter mock data based on search if provided
+            let filteredUsers = userService._mockUsers;
+            if (search) {
+              filteredUsers = userService._mockUsers.filter(user => 
+                user.name.toLowerCase().includes(search.toLowerCase()) ||
+                user.email.toLowerCase().includes(search.toLowerCase())
+              );
+            }
+            
+            return {
+              items: filteredUsers,
+              total: filteredUsers.length,
+              page,
+              limit,
+              totalPages: 1,
+              hasMore: false,
+              _isDemoMode: true,
+              _message: 'Demo mode: Backend server is being deployed'
+            } as PaginatedResponse<User>;
           case 500:
             throw new Error('Server error occurred while fetching users');
           default:

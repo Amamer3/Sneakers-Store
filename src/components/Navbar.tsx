@@ -117,7 +117,7 @@ const Navbar = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2" aria-label="Go to homepage">
             <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-3 xs:px-3.5 py-1.5 rounded-full font-bold text-lg xs:text-xl tracking-tight shadow-sm hover:shadow-md transition-shadow duration-300">
-              SNKRS
+            kicksIntel
             </div>
           </Link>
 

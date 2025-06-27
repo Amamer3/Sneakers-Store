@@ -139,7 +139,8 @@ const Login: React.FC = () => {
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email</Label>
               <Input
-                id="email"
+                id="email" 
+                name="email"
                 type="email"
                 value={email}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
@@ -147,7 +148,7 @@ const Login: React.FC = () => {
                 required
                 disabled={loading}
                 aria-invalid={!validateEmail(email) && email !== '' ? 'true' : 'false'}
-                className="border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 rounded-lg"
+                className="border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 rounded-lg pr-10"
               />
             </div>
 
@@ -173,7 +174,7 @@ const Login: React.FC = () => {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-gray-100 rounded-full"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full"
                   onClick={togglePasswordVisibility}
                   disabled={loading}
                   aria-label={showPassword ? "Hide password" : "Show password"}

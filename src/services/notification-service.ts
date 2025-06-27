@@ -164,6 +164,43 @@ class NotificationService implements NotificationServiceInterface {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
 
+  // Mock notifications for fallback when backend is unavailable
+  private MOCK_NOTIFICATIONS = [
+    {
+      id: 'demo-notif-1',
+      userId: 'demo-user',
+      title: '🔄 Demo Mode Active',
+      message: 'You are currently viewing the application in demo mode. The backend server is being deployed and will be available shortly.',
+      type: 'system' as NotificationType,
+      read: false,
+      priority: 'medium' as NotificationPriority,
+      channel: 'in_app' as NotificationChannel,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'demo-notif-2',
+      userId: 'demo-user',
+      title: '🚀 Backend Deployment in Progress',
+      message: 'Our development team is currently deploying the backend API. All functionality will be restored once deployment is complete.',
+      type: 'system' as NotificationType,
+      read: false,
+      priority: 'high' as NotificationPriority,
+      channel: 'in_app' as NotificationChannel,
+      createdAt: new Date(Date.now() - 1800000).toISOString()
+    },
+    {
+      id: 'demo-notif-3',
+      userId: 'demo-user',
+      title: '✨ Welcome to Sneaker Store',
+      message: 'Thank you for visiting our sneaker store! Explore our demo features while we prepare the full experience.',
+      type: 'promotion' as NotificationType,
+      read: true,
+      priority: 'low' as NotificationPriority,
+      channel: 'in_app' as NotificationChannel,
+      createdAt: new Date(Date.now() - 3600000).toISOString()
+    }
+  ];
+
   // Get user notifications with pagination
   async getNotifications(page: number = 1, limit: number = 20, type?: string): Promise<{
     notifications: Notification[];
@@ -185,6 +222,22 @@ class NotificationService implements NotificationServiceInterface {
       };
     } catch (error: any) {
       console.error('Error fetching notifications:', error);
+      
+      // Handle 404 errors with fallback data
+      if (error.response?.status === 404) {
+        console.warn('🔄 Notifications API not available, using demo data');
+        
+        const filteredNotifications = type 
+          ? this.MOCK_NOTIFICATIONS.filter(n => n.type === type)
+          : this.MOCK_NOTIFICATIONS;
+        
+        return {
+          notifications: filteredNotifications,
+          total: filteredNotifications.length,
+          unread: filteredNotifications.filter(n => !n.read).length
+        };
+      }
+      
       throw new Error(error.response?.data?.message || 'Failed to fetch notifications');
     }
   }

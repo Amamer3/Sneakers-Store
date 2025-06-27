@@ -160,7 +160,7 @@ export default function Checkout() {
       return undefined;
     }
 
-    // Verify Paystack is properly configured
+    // Verify Paystack 
     if (!import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) {
       toast({
         title: 'Configuration Error',

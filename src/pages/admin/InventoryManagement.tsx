@@ -83,21 +83,34 @@ const InventoryManagement: React.FC = () => {
         inventoryService.getStockMovements(undefined, 50)
       ]);
 
-      if (summary.status === 'fulfilled') {
+      if (summary.status === 'fulfilled' && summary.value) {
         setStockSummary(summary.value);
+      } else if (summary.status === 'rejected') {
+        console.warn('Failed to fetch stock summary:', summary.reason);
       }
 
-      if (alerts.status === 'fulfilled') {
-        setLowStockAlerts(alerts.value);
+      if (alerts.status === 'fulfilled' && alerts.value) {
+        setLowStockAlerts(Array.isArray(alerts.value) ? alerts.value : []);
+      } else if (alerts.status === 'rejected') {
+        console.warn('Failed to fetch low stock alerts:', alerts.reason);
+        setLowStockAlerts([]);
       }
 
-      if (movements.status === 'fulfilled') {
-        setStockMovements(movements.value);
+      if (movements.status === 'fulfilled' && movements.value) {
+        setStockMovements(Array.isArray(movements.value) ? movements.value : []);
+      } else if (movements.status === 'rejected') {
+        console.warn('Failed to fetch stock movements:', movements.reason);
+        setStockMovements([]);
       }
 
       // Fetch products for inventory display
-      const productsResponse = await productService.getProducts({ page: 1, limit: 100, sort: 'name' });
-      setProducts(productsResponse.products || []);
+      try {
+        const productsResponse = await productService.getProducts({ page: 1, limit: 100, sort: 'name' });
+        setProducts(Array.isArray(productsResponse.products) ? productsResponse.products : []);
+      } catch (productError) {
+        console.warn('Failed to fetch products:', productError);
+        setProducts([]);
+      }
 
     } catch (err: any) {
       console.error('Error fetching inventory data:', err);
@@ -170,9 +183,9 @@ const InventoryManagement: React.FC = () => {
   };
 
   const getStockStatus = (item: InventoryItem) => {
-    if (item.quantity === 0) {
+    if (item.available === 0) {
       return { label: 'Out of Stock', color: 'bg-red-100 text-red-800' };
-    } else if (item.quantity <= item.reorderLevel) {
+    } else if (item.available <= item.reorderLevel) {
       return { label: 'Low Stock', color: 'bg-yellow-100 text-yellow-800' };
     } else {
       return { label: 'In Stock', color: 'bg-green-100 text-green-800' };
@@ -331,20 +344,21 @@ const InventoryManagement: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {lowStockAlerts.slice(0, 5).map((alert) => (
-                    <div key={alert.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">SKU: {alert.sku}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Current: {alert.currentStock} • Reorder: {alert.reorderLevel}
-                        </p>
+                  {lowStockAlerts && lowStockAlerts.length > 0 ? (
+                    lowStockAlerts.slice(0, 5).map((alert) => (
+                      <div key={alert.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">SKU: {alert.sku || 'Unknown SKU'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Current: {alert.currentStock || 0} • Reorder: {alert.reorderLevel || 0}
+                          </p>
+                        </div>
+                        <Badge className={getPriorityColor(alert.priority || 'low')}>
+                          {alert.priority || 'low'}
+                        </Badge>
                       </div>
-                      <Badge className={getPriorityColor(alert.priority)}>
-                        {alert.priority}
-                      </Badge>
-                    </div>
-                  ))}
-                  {lowStockAlerts.length === 0 && (
+                    ))
+                  ) : (
                     <p className="text-sm text-muted-foreground text-center py-4">
                       No low stock alerts
                     </p>
@@ -361,29 +375,30 @@ const InventoryManagement: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {stockMovements.slice(0, 5).map((movement) => (
-                    <div key={movement.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        {getMovementIcon(movement.type)}
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">{movement.sku}</p>
+                  {stockMovements && stockMovements.length > 0 ? (
+                    stockMovements.slice(0, 5).map((movement) => (
+                      <div key={movement.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          {getMovementIcon(movement.type || 'adjustment')}
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium">{movement.sku || 'Unknown SKU'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {movement.reason || 'No reason provided'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium">
+                            {movement.type === 'out' || movement.type === 'reserved' ? '-' : '+'}
+                            {movement.quantity || 0}
+                          </p>
                           <p className="text-xs text-muted-foreground">
-                            {movement.reason}
+                            {movement.timestamp ? formatDate(movement.timestamp) : 'Unknown date'}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium">
-                          {movement.type === 'out' || movement.type === 'reserved' ? '-' : '+'}
-                          {movement.quantity}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(movement.timestamp)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  {stockMovements.length === 0 && (
+                    ))
+                  ) : (
                     <p className="text-sm text-muted-foreground text-center py-4">
                       No recent movements
                     </p>
@@ -509,47 +524,48 @@ const InventoryManagement: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {products.map((product) => (
-                  <div key={product.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      {product.images && product.images.length > 0 && (
-                        <img
-                          src={product.images[0]?.url || '/placeholder.svg'}
-                          alt={product.name}
-                          className="h-12 w-12 object-cover rounded"
-                        />
-                      )}
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">{product.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          SKU: {product.sku || 'Not assigned'} • Category: {product.category}
-                        </p>
-                        <Badge className={product.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                          {product.inStock ? 'In Stock' : 'Out of Stock'}
-                        </Badge>
+                {products && products.length > 0 ? (
+                  products.map((product) => (
+                    <div key={product.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        {product.images && product.images.length > 0 && (
+                          <img
+                            src={product.images[0]?.url || '/placeholder.svg'}
+                            alt={product.name}
+                            className="h-12 w-12 object-cover rounded"
+                          />
+                        )}
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">{product.name || 'Unknown Product'}</p>
+                          <p className="text-sm text-muted-foreground">
+                            SKU: {product.sku || 'Not assigned'} • Category: {product.category || 'Uncategorized'}
+                          </p>
+                          <Badge className={product.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                            {product.inStock ? 'In Stock' : 'Out of Stock'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setStockAdjustment({
+                              productId: product.id,
+                              adjustment: 0,
+                              reason: '',
+                              type: 'set'
+                            });
+                            setShowStockAdjustment(true);
+                          }}
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Adjust
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setStockAdjustment({
-                            productId: product.id,
-                            adjustment: 0,
-                            reason: '',
-                            type: 'set'
-                          });
-                          setShowStockAdjustment(true);
-                        }}
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        Adjust
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {products.length === 0 && (
+                  ))
+                ) : (
                   <div className="text-center py-8">
                     <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">No products found</p>

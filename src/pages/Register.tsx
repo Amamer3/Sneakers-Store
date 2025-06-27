@@ -133,10 +133,10 @@ const Register: React.FC = () => {
             </svg>
           </div>
           {/* <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-full font-bold text-2xl inline-block mx-auto mb-6 shadow-md">
-            SNKRS
+            kicksIntel
           </div> */}
           <CardTitle className="text-3xl font-extrabold text-gray-900">Create an Account</CardTitle>
-          <CardDescription className="text-gray-600 mt-2">Join ... to start your shopping journey</CardDescription>
+          <CardDescription className="text-gray-600 mt-2">Join kicksIntel to start your shopping journey</CardDescription>
         </CardHeader>
         <CardContent className="px-8 pb-8">
           <form onSubmit={handleSubmit} className="space-y-6">

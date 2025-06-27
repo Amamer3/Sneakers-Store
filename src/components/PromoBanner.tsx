@@ -10,7 +10,7 @@ const PromoBanner = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Why Choose SNKRS?
+            Why Choose kicksIntel?
           </h2>
           <p className="text-xl text-blue-100 max-w-2xl mx-auto">
             Experience the ultimate sneaker shopping with unmatched benefits
@@ -46,7 +46,7 @@ const PromoBanner = () => {
         <div className="text-center">
           <Button asChild size="lg" className="bg-white text-blue-600 hover:bg-gray-100">
             <Link to="/register">
-              Join SNKRS Today
+              Join kicksIntel Today
             </Link>
           </Button>
         </div>
