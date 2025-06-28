@@ -18,6 +18,7 @@ import {
   User,
   Settings
 } from 'lucide-react';
+import apiClient from '@/lib/api-client';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -56,7 +57,9 @@ interface AuthContext {
   logout: () => void;
   isAdmin: boolean;
   isAuthenticated: boolean;
-  user: { username?: string; email?: string } | null;
+  user: {
+    name: string; username?: string; email?: string 
+} | null;
 }
 
 interface Notification {
@@ -113,15 +116,33 @@ const AdminLayout: React.FC = () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
         
+        // Get auth token for authenticated requests
+        const token = localStorage.getItem('token');
+        
+        // Skip notifications fetch if no token available
+        if (!token) {
+          console.warn('No authentication token found - skipping notifications fetch');
+          setUnreadNotifications(0);
+          return;
+        }
+        
         const [healthResponse, notificationsResponse] = await Promise.all([
           fetch('https://sneaker-server-7gec.onrender.com/api/health', {
             method: 'GET',
             signal: controller.signal
           }),
-          fetch('https://sneaker-server-7gec.onrender.com/api/notifications', {
-            method: 'GET',
+          // Use apiClient for authenticated requests
+          apiClient.get('/notifications', {
             signal: controller.signal
-          })
+          }).then(response => ({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(response.data)
+          })).catch(error => ({
+            ok: false,
+            status: error.response?.status || 500,
+            json: () => Promise.resolve([])
+          }))
         ]);
         
         clearTimeout(timeoutId);
@@ -132,6 +153,12 @@ const AdminLayout: React.FC = () => {
           const notifications: Notification[] = await notificationsResponse.json();
           const unreadCount = notifications.filter(n => n.unread).length;
           setUnreadNotifications(unreadCount);
+        } else if (notificationsResponse.status === 401) {
+          console.warn('Unauthorized access to notifications - user may need to re-login');
+          setUnreadNotifications(0);
+        } else {
+          console.warn('Failed to fetch notifications:', notificationsResponse.status);
+          setUnreadNotifications(0);
         }
       } catch (error) {
         console.warn('Backend health check or notifications fetch failed:', error);

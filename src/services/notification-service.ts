@@ -95,6 +95,34 @@ export interface PushSubscription {
   };
 }
 
+export interface BulkNotificationData {
+  templateId?: string;
+  userIds?: string[];
+  filters?: {
+    userType?: 'customers' | 'admins' | 'all';
+    tags?: string[];
+    registrationDateFrom?: string;
+    registrationDateTo?: string;
+    lastActiveFrom?: string;
+    lastActiveTo?: string;
+  };
+  customData?: Record<string, any>;
+  scheduledFor?: string;
+  title?: string;
+  message?: string;
+  type?: NotificationType;
+  priority?: NotificationPriority;
+  channels?: NotificationChannel[];
+}
+
+export interface BulkSendResult {
+  sent: number;
+  failed: number;
+  total: number;
+  errors?: string[];
+  jobId?: string;
+}
+
 export interface NotificationTemplate {
   id: string;
   name: string;
@@ -155,6 +183,7 @@ interface NotificationServiceInterface {
   connect(): void;
   disconnect(): void;
   onNotification(callback: (notification: Notification) => void): () => void;
+  sendBulkNotifications(bulkData: BulkNotificationData): Promise<BulkSendResult>;
 }
 
 class NotificationService implements NotificationServiceInterface {
@@ -490,6 +519,17 @@ class NotificationService implements NotificationServiceInterface {
         this.listeners.splice(index, 1);
       }
     };
+  }
+
+  // Send bulk notifications
+  async sendBulkNotifications(bulkData: BulkNotificationData): Promise<BulkSendResult> {
+    try {
+      const response = await apiClient.post('/admin/notifications/send-bulk', bulkData);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error sending bulk notifications:', error);
+      throw new Error(error.response?.data?.message || 'Failed to send bulk notifications');
+    }
   }
 }
 

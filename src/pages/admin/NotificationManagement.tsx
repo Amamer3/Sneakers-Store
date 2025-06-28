@@ -50,7 +50,9 @@ import {
   NotificationType,
   NotificationPriority,
   NotificationTypes,
-  NotificationPriorities
+  NotificationPriorities,
+  BulkNotificationData,
+  BulkSendResult
 } from '@/services/notification-service';
 
 interface NotificationFilters {
@@ -82,6 +84,19 @@ interface TemplateForm {
   active: boolean;
 }
 
+interface BulkSendForm {
+  templateId?: string;
+  userIds: string;
+  userType: 'customers' | 'admins' | 'all';
+  tags: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  priority: NotificationPriority;
+  channels: string[];
+  scheduledFor?: string;
+}
+
 const NotificationManagement: React.FC = () => {
   const { toast } = useToast();
   
@@ -97,6 +112,7 @@ const NotificationManagement: React.FC = () => {
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [showEditTemplateDialog, setShowEditTemplateDialog] = useState(false);
   const [showStatsDialog, setShowStatsDialog] = useState(false);
+  const [showBulkSendDialog, setShowBulkSendDialog] = useState(false);
   const [broadcastForm, setBroadcastForm] = useState<BroadcastForm>({
     title: '',
     message: '',
@@ -114,8 +130,19 @@ const NotificationManagement: React.FC = () => {
     channels: [],
     active: true
   });
+  const [bulkSendForm, setBulkSendForm] = useState<BulkSendForm>({
+    userIds: '',
+    userType: 'all',
+    tags: '',
+    title: '',
+    message: '',
+    type: NotificationTypes.GENERAL,
+    priority: NotificationPriorities.MEDIUM,
+    channels: []
+  });
   const [activeTab, setActiveTab] = useState('overview');
   const [sending, setSending] = useState(false);
+  const [bulkSending, setBulkSending] = useState(false);
 
   const fetchNotificationData = useCallback(async () => {
     try {
@@ -259,6 +286,55 @@ const NotificationManagement: React.FC = () => {
     }
   };
 
+  const handleBulkSend = async () => {
+    try {
+      setBulkSending(true);
+
+      if (!bulkSendForm.title || !bulkSendForm.message) {
+        toast({
+          title: 'Error',
+          description: 'Please fill in title and message',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      const bulkData: BulkNotificationData = {
+        title: bulkSendForm.title,
+        message: bulkSendForm.message,
+        type: bulkSendForm.type,
+        priority: bulkSendForm.priority,
+        channels: bulkSendForm.channels,
+        filters: {
+          userType: bulkSendForm.userType,
+          tags: bulkSendForm.tags ? bulkSendForm.tags.split(',').map(tag => tag.trim()) : undefined
+        },
+        userIds: bulkSendForm.userIds ? bulkSendForm.userIds.split(',').map(id => id.trim()) : undefined,
+        scheduledFor: bulkSendForm.scheduledFor,
+        templateId: bulkSendForm.templateId
+      };
+
+      const result = await notificationService.sendBulkNotifications(bulkData);
+
+      toast({
+        title: 'Success',
+        description: `Bulk notifications sent successfully. Sent: ${result.sent}, Failed: ${result.failed}`
+      });
+
+      setShowBulkSendDialog(false);
+      resetBulkSendForm();
+      fetchNotificationData();
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to send bulk notifications',
+        variant: 'destructive'
+      });
+    } finally {
+      setBulkSending(false);
+    }
+  };
+
   const handleDeleteTemplate = async (templateId: string) => {
     try {
       await notificationService.deleteTemplate(templateId);
@@ -296,6 +372,19 @@ const NotificationManagement: React.FC = () => {
       variables: [],
       channels: [],
       active: true
+    });
+  };
+
+  const resetBulkSendForm = () => {
+    setBulkSendForm({
+      userIds: '',
+      userType: 'all',
+      tags: '',
+      title: '',
+      message: '',
+      type: NotificationTypes.GENERAL,
+      priority: NotificationPriorities.MEDIUM,
+      channels: []
     });
   };
 
@@ -383,6 +472,10 @@ const NotificationManagement: React.FC = () => {
           <Button onClick={() => setShowBroadcastDialog(true)}>
             <Send className="h-4 w-4 mr-2" />
             Broadcast
+          </Button>
+          <Button variant="outline" onClick={() => setShowBulkSendDialog(true)}>
+            <Users className="h-4 w-4 mr-2" />
+            Bulk Send
           </Button>
           <Button variant="outline" onClick={() => setShowTemplateDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -1116,6 +1209,223 @@ const NotificationManagement: React.FC = () => {
               </Button>
               <Button onClick={handleUpdateTemplate}>
                 Update Template
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Send Dialog */}
+      <Dialog open={showBulkSendDialog} onOpenChange={setShowBulkSendDialog}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Bulk Send Notifications</DialogTitle>
+            <DialogDescription>
+              Send notifications to multiple users based on filters or specific user IDs
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Template Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="bulk-template">Use Template (Optional)</Label>
+              <Select
+                value={bulkSendForm.templateId || ''}
+                onValueChange={(value) => {
+                  setBulkSendForm(prev => ({ ...prev, templateId: value || undefined }));
+                  if (value) {
+                    const template = templates.find(t => t.id === value);
+                    if (template) {
+                      setBulkSendForm(prev => ({
+                        ...prev,
+                        title: template.subject,
+                        message: template.content,
+                        type: template.type,
+                        channels: template.channels
+                      }));
+                    }
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a template" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No template</SelectItem>
+                  {templates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Message Content */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="bulk-title">Title *</Label>
+                <Input
+                  id="bulk-title"
+                  placeholder="Notification title"
+                  value={bulkSendForm.title}
+                  onChange={(e) => setBulkSendForm(prev => ({ ...prev, title: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bulk-type">Type</Label>
+                <Select
+                  value={bulkSendForm.type}
+                  onValueChange={(value) => setBulkSendForm(prev => ({ ...prev, type: value as NotificationType }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NotificationTypes.GENERAL}>General</SelectItem>
+                    <SelectItem value={NotificationTypes.ORDER}>Order</SelectItem>
+                    <SelectItem value={NotificationTypes.PAYMENT}>Payment</SelectItem>
+                    <SelectItem value={NotificationTypes.SHIPPING}>Shipping</SelectItem>
+                    <SelectItem value={NotificationTypes.PROMOTION}>Promotion</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="bulk-message">Message *</Label>
+              <Textarea
+                id="bulk-message"
+                placeholder="Notification message"
+                value={bulkSendForm.message}
+                onChange={(e) => setBulkSendForm(prev => ({ ...prev, message: e.target.value }))}
+                rows={4}
+              />
+            </div>
+
+            {/* Target Audience */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="bulk-user-type">Target Audience</Label>
+                <Select
+                  value={bulkSendForm.userType}
+                  onValueChange={(value) => setBulkSendForm(prev => ({ ...prev, userType: value as 'customers' | 'admins' | 'all' }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Users</SelectItem>
+                    <SelectItem value="customers">Customers Only</SelectItem>
+                    <SelectItem value="admins">Admins Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bulk-priority">Priority</Label>
+                <Select
+                  value={bulkSendForm.priority}
+                  onValueChange={(value) => setBulkSendForm(prev => ({ ...prev, priority: value as NotificationPriority }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NotificationPriorities.LOW}>Low</SelectItem>
+                    <SelectItem value={NotificationPriorities.MEDIUM}>Medium</SelectItem>
+                    <SelectItem value={NotificationPriorities.HIGH}>High</SelectItem>
+                    <SelectItem value={NotificationPriorities.URGENT}>Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Advanced Filters */}
+            <div className="space-y-2">
+              <Label htmlFor="bulk-user-ids">Specific User IDs (Optional)</Label>
+              <Input
+                id="bulk-user-ids"
+                placeholder="user1, user2, user3 (comma-separated)"
+                value={bulkSendForm.userIds}
+                onChange={(e) => setBulkSendForm(prev => ({ ...prev, userIds: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to use audience filter, or specify user IDs to target specific users
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bulk-tags">User Tags (Optional)</Label>
+              <Input
+                id="bulk-tags"
+                placeholder="premium, new-customer, vip (comma-separated)"
+                value={bulkSendForm.tags}
+                onChange={(e) => setBulkSendForm(prev => ({ ...prev, tags: e.target.value }))}
+              />
+            </div>
+
+            {/* Channels */}
+            <div className="space-y-2">
+              <Label>Notification Channels</Label>
+              <div className="flex flex-wrap gap-2">
+                {['in_app', 'email', 'sms', 'push'].map((channel) => (
+                  <div key={channel} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`bulk-channel-${channel}`}
+                      checked={bulkSendForm.channels.includes(channel)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setBulkSendForm(prev => ({
+                            ...prev,
+                            channels: [...prev.channels, channel]
+                          }));
+                        } else {
+                          setBulkSendForm(prev => ({
+                            ...prev,
+                            channels: prev.channels.filter(c => c !== channel)
+                          }));
+                        }
+                      }}
+                    />
+                    <Label htmlFor={`bulk-channel-${channel}`} className="capitalize">
+                      {channel.replace('_', ' ')}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Schedule */}
+            <div className="space-y-2">
+              <Label htmlFor="bulk-schedule">Schedule For (Optional)</Label>
+              <Input
+                id="bulk-schedule"
+                type="datetime-local"
+                value={bulkSendForm.scheduledFor || ''}
+                onChange={(e) => setBulkSendForm(prev => ({ ...prev, scheduledFor: e.target.value || undefined }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to send immediately
+              </p>
+            </div>
+            
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowBulkSendDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleBulkSend} disabled={bulkSending}>
+                {bulkSending ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Users className="h-4 w-4 mr-2" />
+                    Send Bulk Notifications
+                  </>
+                )}
               </Button>
             </div>
           </div>
