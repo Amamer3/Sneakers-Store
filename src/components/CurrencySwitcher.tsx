@@ -6,7 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Coins } from 'lucide-react';
+import { Coins, DollarSign, CircleDollarSign } from 'lucide-react';
 import { useCurrency, type Currency } from '@/context/CurrencyContext';
 
 const CurrencySwitcher: React.FC = () => {
@@ -15,7 +15,16 @@ const CurrencySwitcher: React.FC = () => {
   const currencies: { value: Currency; label: string; symbol: string }[] = [
     { value: 'USD', label: 'US Dollar', symbol: '$' },
     { value: 'GHS', label: 'Ghanaian Cedi', symbol: '₵' },
+    { value: 'AED', label: 'UAE Dirham', symbol: 'د.إ' },
   ];
+
+  // Choose icon based on selected currency
+  const getCurrencyIcon = () => {
+    if (currency === 'USD') return <DollarSign className="h-4 w-4" />;
+    if (currency === 'GHS') return <CircleDollarSign className="h-4 w-4" />;
+    if (currency === 'AED') return <span className="h-4 w-4 text-lg">د.إ</span>;
+    return <Coins className="h-4 w-4" />;
+  };
 
   return (
     <div>
@@ -29,7 +38,7 @@ const CurrencySwitcher: React.FC = () => {
             aria-label="Select currency"
             disabled={isLoading}
           >
-            <Coins className="h-4 w-4" />
+            {getCurrencyIcon()}
             <span className="sr-only">Select currency</span>
           </Button>
         </DropdownMenuTrigger>

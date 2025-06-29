@@ -5,6 +5,7 @@ import { cartService } from '@/services/cart-service';
 import axios from 'axios';
 
 interface User {
+  _id: string;
   id: string;
   email: string;
   name: string;

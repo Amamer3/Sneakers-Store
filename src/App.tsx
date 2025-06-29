@@ -34,6 +34,11 @@ import OrderManagement from "./pages/admin/OrderManagement";
 
 import CouponManagement from "./pages/admin/CouponManagement";
 import CouponTest from "./pages/CouponTest";
+import Returns from "./pages/Returns";
+import Shipping from "./pages/Shipping";
+import About from "./pages/About";
+import ProductsPage from "./pages/Products";
+import Faq from "./pages/Faq";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
@@ -86,6 +91,11 @@ const App = () => (
                     <Route path="/cart" element={<MainLayoutWrapper><Cart /></MainLayoutWrapper>} />
                     <Route path="/wishlist" element={<MainLayoutWrapper><Wishlist /></MainLayoutWrapper>} />
                     <Route path="/coupon-test" element={<MainLayoutWrapper><CouponTest /></MainLayoutWrapper>} />
+                    <Route path="/returns" element={<MainLayoutWrapper><Returns /></MainLayoutWrapper>} />
+                    <Route path="/shipping" element={<MainLayoutWrapper><Shipping /></MainLayoutWrapper>} />
+                    <Route path="/about" element={<MainLayoutWrapper><About /></MainLayoutWrapper>} />
+                    <Route path="/products" element={<MainLayoutWrapper><ProductsPage /></MainLayoutWrapper>} />
+                    <Route path="/faq" element={<MainLayoutWrapper><Faq /></MainLayoutWrapper>} />
 
                     {/* Protected Routes */}
                     <Route element={<ProtectedRouteWrapper />}>

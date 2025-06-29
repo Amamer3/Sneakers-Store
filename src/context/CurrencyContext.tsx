@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { currencyService } from '@/services/currency-service';
 import { DEFAULT_RATES } from '@/services/currency-service';
 
-export type Currency = 'USD' | 'GHS';
+export type Currency = 'USD' | 'GHS' | 'AED';
 
 interface CurrencyContextType {
   currency: Currency;
@@ -18,7 +18,7 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined
 export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currency, setCurrency] = useState<Currency>(() => {
     const saved = localStorage.getItem('preferred-currency');
-    return saved && ['USD', 'GHS'].includes(saved) ? (saved as Currency) : 'GHS';
+    return saved && ['USD', 'GHS', 'AED'].includes(saved) ? (saved as Currency) : 'GHS';
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,13 +29,22 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const formatPrice = (amount: number): string => {
     try {
-      if (isNaN(amount) || amount < 0) {
+      if (isNaN(amount) || amount === undefined || amount === null) {
         console.warn('Invalid amount for formatting:', amount);
         // Return formatted zero instead of N/A
         return currencyService.formatPrice(0, currency);
       }
-      // Since amount is always in GHS, convert to USD if needed
-      const finalAmount = currency === 'USD' ? currencyService.convert(amount, 'GHS', 'USD') : amount;
+      if (amount < 0) {
+        // Optionally handle negative values differently if needed
+        return '-' + currencyService.formatPrice(Math.abs(amount), currency);
+      }
+      // Since amount is always in GHS, convert to USD or AED if needed
+      let finalAmount = amount;
+      if (currency === 'USD') {
+        finalAmount = currencyService.convert(amount, 'GHS', 'USD');
+      } else if (currency === 'AED') {
+        finalAmount = currencyService.convert(amount, 'GHS', 'AED');
+      }
       return currencyService.formatPrice(finalAmount, currency);
     } catch (err) {
       console.error('Error formatting price:', err);
@@ -51,9 +60,12 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.warn('Invalid amount for conversion:', amount);
         return 0;
       }
-      // If the amount is coming from USD, convert it to our base currency (GHS)
+      // If the amount is coming from USD or AED, convert it to our base currency (GHS)
       if (fromCurrency === 'USD') {
         const amountInGHS = amount * (1 / DEFAULT_RATES.USD);
+        return Math.round(amountInGHS * 100) / 100;
+      } else if (fromCurrency === 'AED') {
+        const amountInGHS = amount * (1 / DEFAULT_RATES.AED);
         return Math.round(amountInGHS * 100) / 100;
       }
       return amount;

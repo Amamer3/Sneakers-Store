@@ -7,6 +7,8 @@ import { Loader2, Tag, X, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { couponService } from '@/services/coupon-service';
 import { useCurrency } from '@/context/CurrencyContext';
+import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
 
 interface CouponInputProps {
   orderTotal: number;
@@ -27,6 +29,8 @@ const CouponInput: React.FC<CouponInputProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { formatPrice } = useCurrency();
+  const { user } = useAuth();
+  const { items: contextCartItems, totalPrice: contextCartTotal } = useCart();
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -41,24 +45,29 @@ const CouponInput: React.FC<CouponInputProps> = ({
     setIsLoading(true);
     try {
       const result = await couponService.validateCoupon({
-        couponCode: couponCode.trim(),
-        orderTotal
+        code: couponCode.trim().toUpperCase(),
+        userId: user?.id || user?._id || '',
+        cart: cartItems.length > 0 ? cartItems : contextCartItems,
+        cartTotal: typeof orderTotal === 'number' ? orderTotal : contextCartTotal
       });
 
-      if (result.isValid && result.discount) {
-        onCouponApplied(result.discount);
+      if (result.isValid && (result.discount || result.coupon)) {
+        // Prefer discount if present, else fallback to coupon
+        onCouponApplied(result.discount || result.coupon);
         toast({
           title: 'Coupon Applied!',
-          description: result.message || `You saved ${formatPrice(result.discount.amount)}`,
+          description: result.message || (result.discount ? `You saved ${formatPrice(result.discount.appliedAmount)}` : result.coupon?.description || ''),
           variant: 'default',
         });
         setCouponCode('');
       } else {
         toast({
           title: 'Invalid Coupon',
-          description: result.error || 'This coupon code is not valid',
+          description: (result.error || 'This coupon code is not valid') + (result.message ? ` [${result.message}]` : ''),
           variant: 'destructive',
         });
+        // Debug: log backend error/message
+        console.warn('Coupon validation failed:', result);
       }
     } catch (error: any) {
       toast({
@@ -87,7 +96,7 @@ const CouponInput: React.FC<CouponInputProps> = ({
   };
 
   return (
-    <Card className="border-gray-200 rounded-xl">
+    <Card className="border-gray-200 border-[1px] border-solid rounded-xl">
       <CardContent className="p-4">
         {appliedCoupon ? (
           <div className="space-y-3">
@@ -106,7 +115,7 @@ const CouponInput: React.FC<CouponInputProps> = ({
               </Button>
             </div>
             
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <div className="bg-green-50 border border-green-200 border-solid rounded-lg p-3">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center space-x-2">
@@ -146,7 +155,7 @@ const CouponInput: React.FC<CouponInputProps> = ({
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                 onKeyPress={handleKeyPress}
-                className="flex-1 rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                className="flex-1 rounded-lg border-gray-300 border-[1px] border-solid focus:border-indigo-500 focus:ring-indigo-500"
                 disabled={isLoading}
               />
               <Button

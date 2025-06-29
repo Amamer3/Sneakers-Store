@@ -125,7 +125,7 @@ const HeroCarousel: React.FC = React.memo(() => {
         {heroSlides.map((slide, index) => (
             <CarouselItem key={slide.id}>
               <section
-                className="relative text-white py-8 xs:py-10 sm:py-12 md:py-16 h-[400px] xs:h-[450px] sm:h-[500px] md:h-[600px] lg:h-[700px] xl:h-[800px] flex items-center transition-all duration-1200 ease-in-out"
+                className="relative text-white py-8 xs:py-10 sm:py-12 md:py-16 h-[500px] xs:h-[600px] sm:h-[700px] md:h-[800px] lg:h-[900px] xl:h-[1000px] flex items-center transition-all duration-1200 ease-in-out"
                 aria-labelledby={`slide-title-${slide.id}`}
               >
                 {/* Background Image with Subtle Zoom */}
@@ -152,7 +152,7 @@ const HeroCarousel: React.FC = React.memo(() => {
                   <div className="lg:w-1/2 text-left space-y-4 xs:space-y-5 sm:space-y-6 md:space-y-8 animate-slide-in-left">
                     {/* Small Title */}
                     <div className="inline-block" style={{ animationDelay: '0.1s' }}>
-                      <div className="bg-white/10 backdrop-blur-md rounded-full px-3 xs:px-4 py-1 text-xs xs:text-sm font-medium text-white border border-white/20">
+                      <div className="bg-white/10 backdrop-blur-md rounded-full px-3 xs:px-4 py-1 text-xs xs:text-sm font-medium text-white border border-white/20 border-solid">
                         Featured Collection {new Date().getFullYear()}
                       </div>
                     </div>
@@ -207,7 +207,7 @@ const HeroCarousel: React.FC = React.memo(() => {
                       <Button
                         variant="outline"
                         size="lg"
-                        className="bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-md text-sm xs:text-base py-3 xs:py-4 px-6 xs:px-8"
+                        className="bg-white/10 border-white/20 border-[1px] border-solid text-white hover:bg-white/20 backdrop-blur-md text-sm xs:text-base py-3 xs:py-4 px-6 xs:px-8"
                       >
                         Learn More
                       </Button>

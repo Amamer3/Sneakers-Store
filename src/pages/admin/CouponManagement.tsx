@@ -34,6 +34,8 @@ import {
 } from 'lucide-react';
 import { couponService, Coupon, CouponUsageStats } from '@/services/coupon-service';
 import { DiscountType } from '@/types/order';
+import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
 
 interface CouponFilters {
   status?: 'active' | 'inactive' | 'expired';
@@ -61,6 +63,8 @@ interface CouponFormData {
 
 const CouponManagement: React.FC = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { items: cartItems, totalPrice: cartTotal } = useCart();
   
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [usageStats, setUsageStats] = useState<CouponUsageStats>({ totalCoupons: 0, activeCoupons: 0, totalUsage: 0, totalDiscount: 0, topCoupons: [] });
@@ -329,6 +333,38 @@ const CouponManagement: React.FC = () => {
       </div>
     );
   }
+
+  // Example usage for validating a coupon (add this where you need to validate a coupon):
+  const validateCoupon = async (code: string, cartTotalOverride?: number) => {
+    try {
+      const result = await couponService.validateCoupon({
+        code,
+        userId: user?.id || user?._id || '',
+        cart: cartItems,
+        cartTotal: typeof cartTotalOverride === 'number' ? cartTotalOverride : cartTotal
+      });
+      // Handle result (e.g., show toast, update UI, etc.)
+      if (result.isValid) {
+        toast({
+          title: 'Coupon Valid',
+          description: 'The coupon is valid!',
+          variant: 'default'
+        });
+      } else {
+        toast({
+          title: 'Invalid Coupon',
+          description: result.error || 'Coupon is not valid',
+          variant: 'destructive'
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to validate coupon',
+        variant: 'destructive'
+      });
+    }
+  };
 
   return (
     <div className="space-y-6 p-6">

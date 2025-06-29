@@ -131,21 +131,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('AddToCart called with:', { productId, quantity, size, isAuthenticated });
       console.log('Current token:', localStorage.getItem('token'));
       
-      // Check stock availability before adding to cart
-      try {
-        const stockCheck = await inventoryService.checkStock(productId, size || undefined, quantity);
-        if (!stockCheck.isAvailable) {
-          toast({
-            title: 'Item Unavailable',
-            description: `Only ${stockCheck.availableQuantity} items available in stock.`,
-            variant: 'destructive'
-          });
-          return;
-        }
-      } catch (stockError) {
-        console.warn('Stock check failed, proceeding with cart addition:', stockError);
-        // Continue with cart addition even if stock check fails (fallback)
-      }
+      
       
       if (isAuthenticated) {
         console.log('Adding to cart for authenticated user');

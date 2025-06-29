@@ -1,13 +1,15 @@
 export interface ExchangeRates {
   USD: number;
   GHS: number;
+  AED: number;
   timestamp: number;
 }
 
-// Fixed exchange rates (1 USD = 11.50 GHS as of 2025)
+// Fixed exchange rates (1 USD = 11.50 GHS, 1 AED = 3.13 GHS as of 2025)
 export const DEFAULT_RATES: ExchangeRates = {
   GHS: 1, // Base currency
   USD: 1/11.50, // Conversion rate from GHS to USD
+  AED: 1/3.13, // Conversion rate from GHS to AED
   timestamp: Date.now()
 };
 
@@ -20,47 +22,44 @@ export const currencyService = {
   /**
    * Convert amount from one currency to another
    * @param amount The amount to convert
-   * @param fromCurrency The currency to convert from ('USD' | 'GHS')
-   * @param toCurrency The currency to convert to ('USD' | 'GHS')
-   */  convert(amount: number, fromCurrency: 'USD' | 'GHS', toCurrency: 'USD' | 'GHS'): number {
-    // Since we store everything in GHS, and GHS is our base currency:
+   * @param fromCurrency The currency to convert from ('USD' | 'GHS' | 'AED')
+   * @param toCurrency The currency to convert to ('USD' | 'GHS' | 'AED')
+   */
+  convert(amount: number, fromCurrency: 'USD' | 'GHS' | 'AED', toCurrency: 'USD' | 'GHS' | 'AED'): number {
     const rates = DEFAULT_RATES;
-    
-    // If we're already in GHS and want GHS, return as is
-    if (toCurrency === 'GHS') {
-      return amount;
+    if (fromCurrency === toCurrency) return amount;
+    // Convert from any to GHS first
+    let amountInGHS = amount;
+    if (fromCurrency !== 'GHS') {
+      amountInGHS = fromCurrency === 'USD'
+        ? amount / rates.USD
+        : amount / rates.AED;
     }
-    
-    // Converting from GHS to USD
-    if (toCurrency === 'USD') {
-      // Convert by multiplying with the USD rate (which is 1/11.50)
-      return Math.round((amount * rates.USD) * 100) / 100;
-    }
-    
+    // Then from GHS to target
+    if (toCurrency === 'GHS') return amountInGHS;
+    if (toCurrency === 'USD') return Math.round((amountInGHS * rates.USD) * 100) / 100;
+    if (toCurrency === 'AED') return Math.round((amountInGHS * rates.AED) * 100) / 100;
     return amount;
   },
 
   /**
    * Format price in the given currency
    * @param amount The amount to format
-   * @param currency The currency to format in ('USD' | 'GHS')
-   */  formatPrice(amount: number, currency: 'USD' | 'GHS'): string {
-    // For GHS (Ghana Cedis), use GHS code and proper locale
-    const formatter = new Intl.NumberFormat(currency === 'GHS' ? 'en-GH' : 'en-US', {
+   * @param currency The currency to format in ('USD' | 'GHS' | 'AED')
+   */
+  formatPrice(amount: number, currency: 'USD' | 'GHS' | 'AED'): string {
+    const locale = currency === 'GHS' ? 'en-GH' : currency === 'AED' ? 'en-AE' : 'en-US';
+    const formatter = new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
       currencyDisplay: 'symbol'
     });
-    
-    const formatted = formatter.format(amount);
-    
-    // For GHS, replace GHS with ₵ if needed (some browsers might not support the Cedi symbol)
+    let formatted = formatter.format(amount);
     if (currency === 'GHS' && formatted.includes('GHS')) {
-      return formatted.replace('GHS', '₵');
+      formatted = formatted.replace('GHS', '₵');
     }
-    
     return formatted;
   }
 };
