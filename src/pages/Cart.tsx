@@ -9,15 +9,31 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import CouponInput from '@/components/CouponInput';
 
 
 const Cart = () => {
   const { items, removeFromCart, updateQuantity, total: totalPrice } = useCart();
   const { formatPrice } = useCurrency();
   const [loadingItems, setLoadingItems] = useState<Set<string>>(new Set());
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  
+  // Calculate totals with coupon
+  const subtotal = totalPrice;
+  const tax = subtotal * 0.08;
+  const couponDiscount = appliedCoupon ? appliedCoupon.amount : 0;
+  const finalTotal = subtotal + tax - couponDiscount;
+
+  const handleCouponApplied = (discount: any) => {
+    setAppliedCoupon(discount);
+  };
+
+  const handleCouponRemoved = () => {
+    setAppliedCoupon(null);
+  };
 
   React.useEffect(() => {
     AOS.init({
@@ -170,10 +186,23 @@ const Cart = () => {
           <div className="lg:col-span-1" data-aos="fade-up" data-aos-delay="200">
             <Card className="sticky top-24 border-gray-200 rounded-2xl shadow-lg">
               <CardContent className="p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Order Summary</h2>                  <div className="space-y-4">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Order Summary</h2>
+                
+                {/* Coupon Input */}
+                <div className="mb-6">
+                  <CouponInput
+                    orderTotal={subtotal}
+                    onCouponApplied={handleCouponApplied}
+                    onCouponRemoved={handleCouponRemoved}
+                    appliedCoupon={appliedCoupon}
+                    cartItems={items}
+                  />
+                </div>
+                
+                <div className="space-y-4">
                   <div className="flex justify-between text-base">
                     <span className="text-gray-600">Subtotal ({totalItems} items)</span>
-                    <span className="font-semibold text-gray-900">{formatPrice(totalPrice)}</span>
+                    <span className="font-semibold text-gray-900">{formatPrice(subtotal)}</span>
                   </div>
                   
                   <div className="flex justify-between text-base">
@@ -181,15 +210,22 @@ const Cart = () => {
                     <span className="font-semibold text-green-600">Free</span>
                   </div>
                   
+                  {appliedCoupon && (
+                    <div className="flex justify-between text-base">
+                      <span className="text-gray-600">Coupon Discount</span>
+                      <span className="font-semibold text-green-600">-{formatPrice(couponDiscount)}</span>
+                    </div>
+                  )}
+                  
                   <div className="flex justify-between text-base">
                     <span className="text-gray-600">Tax (8%)</span>
-                    <span className="font-semibold text-gray-900">{formatPrice(totalPrice * 0.08)}</span>
+                    <span className="font-semibold text-gray-900">{formatPrice(tax)}</span>
                   </div>
                   
                   <div className="border-t border-gray-200 pt-4">
                     <div className="flex justify-between text-lg font-bold text-gray-900">
                       <span>Total</span>
-                      <span className="text-xl">{formatPrice(totalPrice * 1.08)}</span>
+                      <span className="text-xl">{formatPrice(finalTotal)}</span>
                     </div>
                   </div>
                 </div>

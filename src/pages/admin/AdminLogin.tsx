@@ -74,7 +74,7 @@ export default function AdminLogin() {
         <CardHeader>
           <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
           <CardDescription>
-            Sign in to access the admin dashboard
+            Sign in to access the KicksIntel dashboard
           </CardDescription>
         </CardHeader>
         <CardContent>

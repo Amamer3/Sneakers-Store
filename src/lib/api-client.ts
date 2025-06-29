@@ -1,18 +1,119 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { toast } from '@/hooks/use-toast';
 
-// Extend the Axios request config type to include our custom properties
+
 interface CustomRequestConfig extends InternalAxiosRequestConfig {
   retryCount?: number;
   _retry?: boolean;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://sneaker-server-7gec.onrender.com/api';
+const API_URL = import.meta.env.VITE_API_URL ;
+// || 'https://sneaker-server-7gec.onrender.com/api';
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000; // 2 seconds
-const INITIAL_TIMEOUT = 30000; // 30 seconds for cold starts
+const RETRY_DELAY = 2000; 
+class ApiClient {
+  private baseURL: string;
+  
+  constructor() {
+    this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  }
+  
+  private getAuthHeaders(): Record<string, string> {
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    
+    return {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    };
+  }
+  
+  async get(endpoint: string) {
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'GET',
+        headers: this.getAuthHeaders()
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`HTTP ${response.status}: ${errorData.message || response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return { data, status: response.status };
+    } catch (error: any) {
+      console.error(`[API] Error for ${endpoint}:`, { status: error.status, data: error.data, message: error.message });
+      throw error;
+    }
+  }
+  
+  async post(endpoint: string, data: any) {
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`HTTP ${response.status}: ${errorData.message || response.statusText}`);
+      }
+      
+      const responseData = await response.json();
+      return { data: responseData, status: response.status };
+    } catch (error: any) {
+      console.error(`[API] Error for ${endpoint}:`, { status: error.status, data: error.data, message: error.message });
+      throw error;
+    }
+  }
+  
+  async patch(endpoint: string, data?: any) {
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'PATCH',
+        headers: this.getAuthHeaders(),
+        ...(data && { body: JSON.stringify(data) })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`HTTP ${response.status}: ${errorData.message || response.statusText}`);
+      }
+      
+      const responseData = await response.json();
+      return { data: responseData, status: response.status };
+    } catch (error: any) {
+      console.error(`[API] Error for ${endpoint}:`, { status: error.status, data: error.data, message: error.message });
+      throw error;
+    }
+  }
+  
+  async delete(endpoint: string) {
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'DELETE',
+        headers: this.getAuthHeaders()
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`HTTP ${response.status}: ${errorData.message || response.statusText}`);
+      }
+      
+      const responseData = await response.json();
+      return { data: responseData, status: response.status };
+    } catch (error: any) {
+      console.error(`[API] Error for ${endpoint}:`, { status: error.status, data: error.data, message: error.message });
+      throw error;
+    }
+  }
+}
 
-const apiClient = axios.create({
+export const apiClient = new ApiClient();
+const INITIAL_TIMEOUT = 30000; 
+
+const axiosClient = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -33,7 +134,7 @@ const isServerError = (error: AxiosError) => {
 };
 
 // Request interceptor
-apiClient.interceptors.request.use(
+axiosClient.interceptors.request.use(
   async (config: CustomRequestConfig) => {
     // Add auth token if available
     const token = localStorage.getItem('token');
@@ -62,7 +163,7 @@ const isAdminEndpoint = (url: string | undefined) => {
 };
 
 // Response interceptor
-apiClient.interceptors.response.use(
+axiosClient.interceptors.response.use(
   (response) => {
     // Log successful response in development
     if (import.meta.env.DEV) {
@@ -99,7 +200,7 @@ apiClient.interceptors.response.use(
         duration: 2000,
       });
 
-      return apiClient(originalRequest);
+      return axiosClient(originalRequest);
     }
 
     // Log error details in development
@@ -174,4 +275,4 @@ function getErrorMessage(error: AxiosError): string {
   }
 }
 
-export default apiClient;
+export default axiosClient;

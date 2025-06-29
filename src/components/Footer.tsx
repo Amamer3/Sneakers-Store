@@ -9,7 +9,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* About Section */}
           <div className="space-y-4">
-            <h3 className="text-xl font-bold text-white">Kicks Commerce</h3>
+            <img src="/kicksintel-logo-removebg.png" className='h-16 w-auto' alt="Kicks Intel" />
             <p className="text-sm">
               Your premier destination for the latest and greatest in footwear fashion.
               Discover comfort, style, and quality in every step.
@@ -88,17 +88,17 @@ const Footer = () => {
             </div>
             {/* Social Links */}
             <div className="flex space-x-4 mt-4">
-              <a href="#" className="hover:text-white transition-colors">
-                <Facebook size={20} />
+              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="hover:text-white transition-colors">
+                <Facebook size={24} />
               </a>
-              <a href="#" className="hover:text-white transition-colors">
-                <Instagram size={20} />
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="hover:text-white transition-colors">
+                <Instagram size={24} />
               </a>
-              <a href="#" className="hover:text-white transition-colors">
-                <Twitter size={20} />
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="hover:text-white transition-colors">
+                <Twitter size={24} />
               </a>
-              <a href="#" className="hover:text-white transition-colors">
-                <Youtube size={20} />
+              <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="hover:text-white transition-colors">
+                <Youtube size={24} />
               </a>
             </div>
           </div>

@@ -41,6 +41,22 @@ export interface ApplyCouponRequest {
   userId?: string;
 }
 
+export interface CouponValidationRequest {
+  code: string;
+  userId: string;
+  cart: any; // Cart interface
+  cartTotal: number;
+}
+
+export interface ApplyCartCouponRequest {
+  userId: string;
+  couponCode: string;
+}
+
+export interface RemoveCartCouponRequest {
+  userId: string;
+}
+
 export interface CouponUsageStats {
   totalCoupons: number;
   activeCoupons: number;
@@ -55,17 +71,21 @@ export interface CouponUsageStats {
 
 interface CouponServiceInterface {
   // User endpoints
-  validateCoupon(request: ApplyCouponRequest): Promise<CouponValidationResult>;
+  validateCoupon(request: CouponValidationRequest): Promise<CouponValidationResult>;
   applyCoupon(request: ApplyCouponRequest): Promise<OrderDiscount>;
   getUserCoupons(): Promise<Coupon[]>;
+  
+  // Cart-specific endpoints
+  applyCartCoupon(request: ApplyCartCouponRequest): Promise<{ cart: any, discount: { amount: number, percentage?: number, description: string } }>;
+  removeCartCoupon(request: RemoveCartCouponRequest): Promise<any>;
   
   // Admin endpoints
   getAllCoupons(): Promise<Coupon[]>;
   getCouponById(id: string): Promise<Coupon>;
   createCoupon(coupon: Omit<Coupon, 'id' | 'usageCount' | 'createdAt' | 'updatedAt'>): Promise<Coupon>;
   updateCoupon(id: string, updates: Partial<Coupon>): Promise<Coupon>;
-  deleteCoupon(id: string): Promise<void>;
-  getCouponStats(): Promise<CouponUsageStats>;
+  deleteCoupon(id: string): Promise<{ success: boolean }>;
+  getCouponStats(startDate?: string, endDate?: string): Promise<CouponUsageStats>;
   
   // Utility methods
   calculateDiscount(coupon: Coupon, orderTotal: number, items?: any[]): number;
@@ -75,7 +95,7 @@ interface CouponServiceInterface {
 
 export const couponService: CouponServiceInterface = {
   // Validate coupon without applying it
-  async validateCoupon(request: ApplyCouponRequest): Promise<CouponValidationResult> {
+  async validateCoupon(request: CouponValidationRequest): Promise<CouponValidationResult> {
     try {
       const response = await apiClient.post('/coupons/validate', request);
       return response.data;
@@ -107,6 +127,28 @@ export const couponService: CouponServiceInterface = {
     } catch (error: any) {
       console.error('Error fetching user coupons:', error);
       throw new Error(error.response?.data?.message || 'Failed to fetch coupons');
+    }
+  },
+
+  // Apply coupon to cart
+  async applyCartCoupon(request: ApplyCartCouponRequest): Promise<{ cart: any, discount: { amount: number, percentage?: number, description: string } }> {
+    try {
+      const response = await apiClient.post('/cart/apply-coupon', request);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error applying coupon to cart:', error);
+      throw new Error(error.response?.data?.message || 'Failed to apply coupon to cart');
+    }
+  },
+
+  // Remove coupon from cart
+  async removeCartCoupon(request: RemoveCartCouponRequest): Promise<any> {
+    try {
+      const response = await apiClient.post('/cart/remove-coupon', request);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error removing coupon from cart:', error);
+      throw new Error(error.response?.data?.message || 'Failed to remove coupon from cart');
     }
   },
 
@@ -146,7 +188,7 @@ export const couponService: CouponServiceInterface = {
   // Admin: Update coupon
   async updateCoupon(id: string, updates: Partial<Coupon>): Promise<Coupon> {
     try {
-      const response = await apiClient.patch(`/admin/coupons/${id}`, updates);
+      const response = await apiClient.put(`/admin/coupons/${id}`, updates);
       return response.data;
     } catch (error: any) {
       console.error('Error updating coupon:', error);
@@ -155,9 +197,10 @@ export const couponService: CouponServiceInterface = {
   },
 
   // Admin: Delete coupon
-  async deleteCoupon(id: string): Promise<void> {
+  async deleteCoupon(id: string): Promise<{ success: boolean }> {
     try {
-      await apiClient.delete(`/admin/coupons/${id}`);
+      const response = await apiClient.delete(`/admin/coupons/${id}`);
+      return response.data;
     } catch (error: any) {
       console.error('Error deleting coupon:', error);
       throw new Error(error.response?.data?.message || 'Failed to delete coupon');
@@ -165,9 +208,14 @@ export const couponService: CouponServiceInterface = {
   },
 
   // Admin: Get coupon usage statistics
-  async getCouponStats(): Promise<CouponUsageStats> {
+  async getCouponStats(startDate?: string, endDate?: string): Promise<CouponUsageStats> {
     try {
-      const response = await apiClient.get('/admin/coupons/stats');
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      
+      const url = `/admin/coupons/stats${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching coupon stats:', error);

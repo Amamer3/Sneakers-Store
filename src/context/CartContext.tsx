@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { cartService } from '@/services/cart-service';
 import { productService } from '@/services/product-service';
-import { inventoryService } from '@/services/inventory-service';
 import { useAuth } from './AuthContext';
 
 // API response types

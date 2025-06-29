@@ -44,7 +44,6 @@ export interface OrderStats {
 // Product Analytics Types
 export interface ProductStats {
   topProducts: ProductStatDetail[];
-  lowStockItems: ProductStatDetail[];
   categoryDistribution: {
     [category: string]: number;
   };

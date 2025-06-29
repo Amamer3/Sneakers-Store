@@ -3,7 +3,8 @@ import { checkAdminAuth } from './auth-service';
 
 // Create axios instance with custom config
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://sneaker-server-7gec.onrender.com/api',
+  baseURL: import.meta.env.VITE_API_URL,
+  // || 'https://sneaker-server-7gec.onrender.com/api',
   headers: {
     'Content-Type': 'application/json',
   },

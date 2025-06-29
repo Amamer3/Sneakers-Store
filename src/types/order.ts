@@ -62,15 +62,7 @@ export interface OrderDiscount {
   minOrderAmount?: number;
 }
 
-export interface InventoryReservation {
-  id: string;
-  productId: string;
-  quantity: number;
-  size?: string;
-  reservedAt: string | Date;
-  expiresAt: string | Date;
-  status: 'active' | 'expired' | 'released' | 'confirmed';
-}
+
 
 export interface ShippingInfo {
   name: string;

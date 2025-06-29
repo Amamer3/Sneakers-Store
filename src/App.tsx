@@ -9,6 +9,7 @@ import { WishlistProvider } from "@/context/WishlistContext";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { DeliveryProvider } from "@/context/DeliveryContext";
 import { OrderProvider } from "@/context/OrderContext";
+
 import AdminRoute from "@/components/AdminRoute";
 import AdminLayout from "@/components/AdminLayout";
 import MainLayout from "@/components/MainLayout";
@@ -30,9 +31,10 @@ import Orders from "./pages/admin/Orders";
 import Users from "./pages/admin/Users";
 import Analytics from "./pages/admin/Analytics";
 import OrderManagement from "./pages/admin/OrderManagement";
-import InventoryManagement from "./pages/admin/InventoryManagement";
+
 import CouponManagement from "./pages/admin/CouponManagement";
-import NotificationManagement from "./pages/admin/NotificationManagement";
+import CouponTest from "./pages/CouponTest";
+
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -68,21 +70,22 @@ const App = () => (
           <WishlistProvider>
             <CurrencyProvider>
               <OrderProvider>
-                <BrowserRouter
-                  future={{
-                    v7_startTransition: true,
-                    v7_relativeSplatPath: true,
-                  }}
-                >
-                <Toaster />
-                <Sonner />
-                <DeliveryProvider>
+                  <BrowserRouter
+                    future={{
+                      v7_startTransition: true,
+                      v7_relativeSplatPath: true,
+                    }}
+                  >
+                  <Toaster />
+                  <Sonner />
+                  <DeliveryProvider>
                   <Routes>
                     {/* Public Routes */}
                     <Route path="/" element={<MainLayoutWrapper><Index /></MainLayoutWrapper>} />
                     <Route path="/product/:id" element={<MainLayoutWrapper><ProductDetail /></MainLayoutWrapper>} />
                     <Route path="/cart" element={<MainLayoutWrapper><Cart /></MainLayoutWrapper>} />
                     <Route path="/wishlist" element={<MainLayoutWrapper><Wishlist /></MainLayoutWrapper>} />
+                    <Route path="/coupon-test" element={<MainLayoutWrapper><CouponTest /></MainLayoutWrapper>} />
 
                     {/* Protected Routes */}
                     <Route element={<ProtectedRouteWrapper />}>
@@ -100,9 +103,9 @@ const App = () => (
                         <Route path="/admin/products" element={<Products />} />
                         <Route path="/admin/orders" element={<Orders />} />
                         <Route path="/admin/order-management" element={<OrderManagement />} />
-                        <Route path="/admin/inventory" element={<InventoryManagement />} />
+
                         <Route path="/admin/coupons" element={<CouponManagement />} />
-                        <Route path="/admin/notifications" element={<NotificationManagement />} />
+
                         <Route path="/admin/users" element={<Users />} />
                         <Route path="/admin/analytics" element={<Analytics />} />
                       </Route>

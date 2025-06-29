@@ -10,9 +10,9 @@ import {
   BarChart3,
   AlertTriangle,
   ClipboardList,
-  Warehouse,
+
   Gift,
-  Bell,
+
   Moon,
   Sun,
   User,
@@ -62,10 +62,7 @@ interface AuthContext {
 } | null;
 }
 
-interface Notification {
-  id: string;
-  unread: boolean;
-}
+
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -105,7 +102,7 @@ const AdminLayout: React.FC = () => {
   const [showFallbackBanner, setShowFallbackBanner] = useState<boolean>(false);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
+
   const [showLogoutDialog, setShowLogoutDialog] = useState<boolean>(false);
 
   // Check backend status and fetch notifications
@@ -121,47 +118,20 @@ const AdminLayout: React.FC = () => {
         
         // Skip notifications fetch if no token available
         if (!token) {
-          console.warn('No authentication token found - skipping notifications fetch');
-          setUnreadNotifications(0);
+          console.warn('No authentication token found');
           return;
         }
         
-        const [healthResponse, notificationsResponse] = await Promise.all([
-          fetch('https://sneaker-server-7gec.onrender.com/api/health', {
-            method: 'GET',
-            signal: controller.signal
-          }),
-          // Use apiClient for authenticated requests
-          apiClient.get('/notifications', {
-            signal: controller.signal
-          }).then(response => ({
-            ok: true,
-            status: 200,
-            json: () => Promise.resolve(response.data)
-          })).catch(error => ({
-            ok: false,
-            status: error.response?.status || 500,
-            json: () => Promise.resolve([])
-          }))
-        ]);
+        const healthResponse = await fetch('https://sneaker-server-7gec.onrender.com/api/health', {
+          method: 'GET',
+          signal: controller.signal
+        });
         
         clearTimeout(timeoutId);
         
         setShowFallbackBanner(!healthResponse.ok);
-        
-        if (notificationsResponse.ok) {
-          const notifications: Notification[] = await notificationsResponse.json();
-          const unreadCount = notifications.filter(n => n.unread).length;
-          setUnreadNotifications(unreadCount);
-        } else if (notificationsResponse.status === 401) {
-          console.warn('Unauthorized access to notifications - user may need to re-login');
-          setUnreadNotifications(0);
-        } else {
-          console.warn('Failed to fetch notifications:', notificationsResponse.status);
-          setUnreadNotifications(0);
-        }
       } catch (error) {
-        console.warn('Backend health check or notifications fetch failed:', error);
+        console.warn('Backend health check failed:', error);
         setShowFallbackBanner(true);
       } finally {
         setIsLoading(false);
@@ -204,9 +174,9 @@ const AdminLayout: React.FC = () => {
     { path: '/admin/products', icon: Package, label: 'Products' },
     { path: '/admin/orders', icon: ShoppingCart, label: 'Orders' },
     { path: '/admin/order-management', icon: ClipboardList, label: 'Order Management' },
-    { path: '/admin/inventory', icon: Warehouse, label: 'Inventory' },
+
     { path: '/admin/coupons', icon: Gift, label: 'Coupons' },
-    { path: '/admin/notifications', icon: Bell, label: 'Notifications', badge: unreadNotifications },
+
     { path: '/admin/users', icon: Users, label: 'Users' },
     { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' }
   ];
@@ -240,7 +210,7 @@ const AdminLayout: React.FC = () => {
         {/* Desktop Sidebar */}
         <aside className="hidden lg:flex h-screen w-64 flex-col fixed left-0 top-0 z-30">
           <div className="flex h-16 items-center border-b px-6 bg-white dark:bg-gray-800 shadow-sm">
-            <span className="font-semibold text-lg text-gray-900 dark:text-white">Admin Dashboard</span>
+            <span className="font-semibold text-lg text-gray-900 dark:text-white">KicksIntel Dashboard</span>
           </div>
           <div className="flex-1 overflow-auto border-r bg-white dark:bg-gray-800 p-4">
             <div className="mb-4">
@@ -275,7 +245,7 @@ const AdminLayout: React.FC = () => {
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-4 bg-white dark:bg-gray-800">
                 <div className="mb-4">
-                  <span className="font-semibold text-lg text-gray-900 dark:text-white">Admin Dashboard</span>
+                  <span className="font-semibold text-lg text-gray-900 dark:text-white">KicksIntel Dashboard</span>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Logged in as {user?.username || user?.email || 'Admin'}
                   </p>
@@ -295,7 +265,7 @@ const AdminLayout: React.FC = () => {
                 </div>
               </SheetContent>
             </Sheet>
-            <span className="font-semibold text-lg text-gray-900 dark:text-white">Admin Dashboard</span>
+            <span className="font-semibold text-lg text-gray-900 dark:text-white">KicksIntel Dashboard</span>
             <div className="flex items-center gap-2">
               {isLoading && (
                 <span className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600 dark:border-gray-600 dark:border-t-gray-300" />

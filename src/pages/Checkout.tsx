@@ -5,7 +5,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useDelivery } from '@/context/DeliveryContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { orderService } from '@/services/order-service';
-import { inventoryService } from '@/services/inventory-service';
 import { paymentService } from '@/services/payment-service';
 import { PaymentMethodSelector } from '@/components/PaymentMethodSelector';
 import { DeliveryInstructions } from '@/components/DeliveryInstructions';
@@ -100,9 +99,7 @@ export default function Checkout() {
         size: item.size,
         quantity: item.quantity
       }));
-      
-      const bulkStockCheck = await inventoryService.bulkCheckStock(stockItems);
-      
+            
       if (!bulkStockCheck.allAvailable) {
         const unavailableItems = bulkStockCheck.results
           .filter(result => !result.isAvailable)

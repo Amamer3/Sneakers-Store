@@ -10,7 +10,7 @@ import CurrencySwitcher from '@/components/CurrencySwitcher';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  DropdownMenu,
+  DropdownMenu, 
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -116,8 +116,8 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-14 xs:h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2" aria-label="Go to homepage">
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-3 xs:px-3.5 py-1.5 rounded-full font-bold text-lg xs:text-xl tracking-tight shadow-sm hover:shadow-md transition-shadow duration-300">
-            kicksIntel
+            <div className="px-3 xs:px-3.5 py-1.5 font-bold text-lg xs:text-xl tracking-tight transition-shadow duration-300">
+              <img src="/kicksintel-logo-removebg.png" className='h-16 w-auto' alt="Kicks Intel" />
             </div>
           </Link>
 
@@ -163,6 +163,7 @@ const Navbar = () => {
               hoverColor="text-indigo-600"
               ringColor="ring-indigo-400"
             />
+
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -192,7 +193,7 @@ const Navbar = () => {
                       onClick={() => navigate('/admin/dashboard')}
                       className="px-3 py-1.5 hover:bg-gray-100/80"
                     >
-                      Admin Dashboard
+                      KicksIntel Dashboard
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem
@@ -310,7 +311,7 @@ const Navbar = () => {
                             }}
                             className="w-full justify-start text-base font-medium hover:bg-gray-100/80 rounded-lg py-2 transition-colors duration-200"
                           >
-                            Admin Dashboard
+                            KicksIntel Dashboard
                           </Button>
                         )}
                         <Button
